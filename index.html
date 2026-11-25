@@ -1,955 +1,1270 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>STERILE OPS | PIC/S Annex 1 Cleanroom Simulator</title>
-<style>
-  :root {
-    --bg: #0d1117;
-    --panel: #161b22;
-    --panel2: #1f2630;
-    --border: #30363d;
-    --text: #e6edf3;
-    --muted: #8b949e;
-    --crit: #f85149;
-    --warn: #d29922;
-    --ok: #3fb950;
-    --acc: #58a6ff;
-    --purple: #a371f7;
-    --gradeA: #ff6b6b;
-    --gradeB: #ffa657;
-    --gradeC: #4ecdc4;
-    --gradeD: #74c0fc;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
-  body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-  
-  /* Header */
-  header {
-    background: linear-gradient(90deg, #0d1117, #161b22);
-    border-bottom: 1px solid var(--border);
-    padding: 0.6rem 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    z-index: 20;
-  }
-  .brand { display: flex; align-items: center; gap: 0.6rem; }
-  .logo-badge {
-    background: var(--acc); color: #0d1117; font-weight: 900; padding: 0.25rem 0.5rem;
-    border-radius: 6px; font-size: 0.9rem; letter-spacing: 0.5px; box-shadow: 0 2px 0 #1f6feb;
-  }
-  .brand h1 { font-size: 1.05rem; letter-spacing: 0.5px; }
-  .brand h1 span { color: var(--crit); }
-  .hud-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
-  .hud-pill {
-    background: var(--panel2); border: 1px solid var(--border); border-radius: 6px;
-    padding: 0.3rem 0.65rem; display: flex; flex-direction: column; min-width: 90px;
-  }
-  .hud-pill span { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; font-weight: 700; }
-  .hud-pill strong { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
-
-  /* Main Layout */
-  .workspace {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    overflow: hidden;
-  }
-  .viewport-wrap {
-    position: relative;
-    background: radial-gradient(circle at center, #161f2c 0%, #090c10 100%);
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
-
-  /* Floating Overlay Controls on Canvas */
-  .zone-banner {
-    position: absolute; top: 12px; left: 12px;
-    background: rgba(22, 27, 34, 0.9); border: 1px solid var(--border);
-    padding: 0.5rem 0.85rem; border-radius: 8px; backdrop-filter: blur(6px);
-    pointer-events: none;
-  }
-  .zone-banner .z-title { font-weight: 800; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem; }
-  .zone-banner .z-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
-
-  .controls-hint {
-    position: absolute; bottom: 12px; left: 12px;
-    background: rgba(13, 17, 23, 0.85); border: 1px solid var(--border);
-    padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.75rem; color: var(--muted);
-    pointer-events: none;
-  }
-  .kbd {
-    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
-    padding: 1px 5px; border-radius: 4px; font-weight: 700; font-size: 0.7rem;
-  }
-
-  /* Action Prompt */
-  .interact-prompt {
-    position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%);
-    background: var(--acc); color: #0d1117; font-weight: 800;
-    padding: 0.5rem 1rem; border-radius: 99px; box-shadow: 0 4px 15px rgba(88, 166, 255, 0.4);
-    display: none; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem;
-    animation: bob 1s infinite ease-in-out;
-  }
-  @keyframes bob { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
-
-  /* Right Sidebar */
-  aside {
-    background: var(--panel);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    padding: 0.85rem;
-    gap: 0.85rem;
-  }
-  .card {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.75rem;
-  }
-  .card h3 {
-    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.6px;
-    color: var(--acc); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center;
-  }
-
-  /* Pressure & Grade Gauges */
-  .cascade-row {
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 0.78rem; padding: 0.35rem 0.5rem; border-radius: 5px;
-    background: var(--panel); margin-bottom: 0.35rem; border-left: 3px solid var(--ok);
-  }
-  .cascade-row.warn { border-left-color: var(--warn); }
-  .cascade-row.crit { border-left-color: var(--crit); background: rgba(248, 81, 73, 0.1); }
-
-  /* Buttons */
-  .btn {
-    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
-    padding: 0.5rem 0.75rem; border-radius: 6px; font-weight: 700; font-size: 0.78rem;
-    cursor: pointer; transition: 0.15s; width: 100%; text-align: left;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .btn:hover:not(:disabled) { border-color: var(--acc); background: #26303d; }
-  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn.primary { background: var(--acc); color: #0d1117; border-color: var(--acc); justify-content: center; }
-  .btn.primary:hover { background: #79c0ff; }
-  .btn-grid { display: grid; gap: 0.4rem; }
-
-  /* Audit Log */
-  .log-box {
-    max-height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem;
-    font-size: 0.73rem;
-  }
-  .log-item {
-    padding: 0.35rem 0.5rem; border-radius: 4px; background: var(--panel);
-    border-left: 3px solid var(--acc); line-height: 1.35;
-  }
-  .log-item.ok { border-left-color: var(--ok); color: #aff5b4; }
-  .log-item.warn { border-left-color: var(--warn); color: #f8e3a1; }
-  .log-item.crit { border-left-color: var(--crit); color: #ffdcd7; }
-
-  /* Modals */
-  .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.82);
-    display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem;
-  }
-  .modal {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-    max-width: 720px; width: 100%; padding: 1.5rem; box-shadow: 0 20px 50px rgba(0,0,0,0.7);
-    max-height: 90vh; overflow-y: auto;
-  }
-  .modal h2 { font-size: 1.3rem; margin-bottom: 0.35rem; color: var(--acc); }
-  .modal p.sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
-  .role-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
-  .role-card {
-    background: var(--bg); border: 2px solid var(--border); border-radius: 8px; padding: 0.85rem;
-    cursor: pointer; transition: 0.15s;
-  }
-  .role-card:hover, .role-card.selected { border-color: var(--acc); background: #16202e; }
-  .role-card .icon { font-size: 1.6rem; margin-bottom: 0.3rem; }
-  .role-card h4 { font-size: 0.9rem; margin-bottom: 0.25rem; }
-  .role-card p { font-size: 0.74rem; color: var(--muted); line-height: 1.35; }
-  .tag {
-    display: inline-block; margin-top: 0.4rem; font-size: 0.68rem; font-weight: 700;
-    padding: 2px 6px; border-radius: 4px; background: rgba(88,166,255,0.15); color: var(--acc);
-  }
-
-  /* Quiz / Deviation Options */
-  .choice-btn {
-    background: var(--bg); border: 1px solid var(--border); color: var(--text);
-    padding: 0.75rem; border-radius: 8px; text-align: left; cursor: pointer;
-    margin-bottom: 0.5rem; width: 100%; font-size: 0.82rem; transition: 0.15s;
-  }
-  .choice-btn:hover { border-color: var(--acc); background: #1c2532; }
-
-  @media (max-width: 900px) {
-    .workspace { grid-template-columns: 1fr; grid-template-rows: 55% 45%; }
-    aside { border-left: none; border-top: 1px solid var(--border); }
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laminar Flow 3D | PIC/S Annex 1 Smoke Study Simulator</title>
+  <!-- Tailwind CSS for responsive Roblox-inspired HUD -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js r128 for 3D WebGL rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Tone.js for procedural UI & aerosol spray audio -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <!-- Google Fonts: Fredoka (Roblox-style playful geometric display) & Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; user-select: none; }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+      background: #0f172a;
+    }
+    .roblox-font {
+      font-family: 'Fredoka', sans-serif;
+      letter-spacing: 0.02em;
+    }
+    .mono-font {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    #game-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    /* Custom Roblox-style glossy dark glass panels */
+    .rbx-panel {
+      background: rgba(15, 23, 42, 0.84);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 2px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+    .rbx-btn {
+      transition: transform 0.1s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+    }
+    .rbx-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+    }
+    /* Custom Range Sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 8px;
+      border-radius: 999px;
+      background: #334155;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      background: #38bdf8;
+      border: 2px solid #ffffff;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    /* Allow text selection inside GitHub code modal */
+    .selectable-code {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+    }
+  </style>
 </head>
-<body>
+<body class="text-slate-100">
 
-<header>
-  <div class="brand">
-    <div class="logo-badge">ANNEX 1</div>
-    <h1>STERILE <span>OPS</span> // 3D CLEANROOM SIMULATOR</h1>
-  </div>
-  <div class="hud-bar">
-    <div class="hud-pill"><span>Batch Vials</span><strong id="hudVials" style="color:var(--ok)">0 / 500</strong></div>
-    <div class="hud-pill"><span>CCS Compliance</span><strong id="hudScore" style="color:var(--acc)">100%</strong></div>
-    <div class="hud-pill"><span>Grade A Particles</span><strong id="hudParticles">0 / m³</strong></div>
-    <div class="hud-pill"><span>Budget</span><strong id="hudCash">$12,500</strong></div>
-    <div class="hud-pill"><span>Shift Timer</span><strong id="hudTime">08:00</strong></div>
-  </div>
-</header>
-
-<div class="workspace">
-  <div class="viewport-wrap">
-    <canvas id="gameCanvas"></canvas>
-    <div class="zone-banner">
-      <div class="z-title" id="zoneTitle">🟦 GRADE D — Component Prep & Autoclave</div>
-      <div class="z-sub" id="zoneReq">Annex 1 Limit: ≥15 Pa vs Unclassified | Gowning: Hairnet, Beard Cover, Lab Coat</div>
-    </div>
-    <div class="interact-prompt" id="interactPrompt" onclick="triggerInteraction()">
-      ⚡ Press [E] or Click to Interact
-    </div>
-    <div class="controls-hint">
-      Move: <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> / <span class="kbd">Arrows</span> or <b>Click Floor</b> • Action: <span class="kbd">E</span> / <span class="kbd">Space</span>
-    </div>
+  <!-- 3D Viewport Container -->
+  <div id="canvas-container" class="fixed inset-0 w-full h-full">
+    <canvas id="game-canvas"></canvas>
   </div>
 
-  <aside>
-    <div class="card">
-      <h3>Differential Pressure (ΔP) <span id="hvacStatus" style="color:var(--ok)">● NORMAL</span></h3>
-      <div id="cascadeList"></div>
-    </div>
-
-    <div class="card">
-      <h3>Cleanroom Quick Actions</h3>
-      <div class="btn-grid">
-        <button class="btn" onclick="runEMSample()"><span>🔬 Viable EM & Particle Scan</span><span>-$150</span></button>
-        <button class="btn" onclick="performPUPSIT()"><span>🧪 Sterilizing Filter PUPSIT</span><span>-$250</span></button>
-        <button class="btn" onclick="gloveLeakTest()"><span>🧤 RABS/Isolator Glove Test</span><span>-$200</span></button>
-        <button class="btn" onclick="sanitizeLine()"><span>🧴 Sporicidal VHP / IPA Wipe</span><span>-$180</span></button>
-        <button class="btn" id="auditBtn" onclick="triggerAuditModal()"><span>📋 PIC/S Inspector Walkdown</span><span>READY</span></button>
+  <!-- TOP ROBLOX-STYLE HUD BAR -->
+  <header class="fixed top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+    <!-- Left: Game Title & Level Selector -->
+    <div class="rbx-panel rounded-2xl px-3.5 py-2 flex items-center gap-3 pointer-events-auto">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-inner border border-white/30">
+        <!-- Stylized Cleanroom HEPA Cube Icon -->
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" />
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="roblox-font text-base sm:text-lg font-bold text-white leading-none">LAMINAR FLOW 3D</h1>
+          <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">PIC/S Annex 1</span>
+        </div>
+        <div class="flex items-center gap-1.5 mt-1">
+          <button onclick="setLevel(1)" id="lvl-btn-1" class="lvl-tab px-2 py-0.5 rounded-md text-xs font-semibold bg-sky-500 text-white">Lvl 1: LAF Hood</button>
+          <button onclick="setLevel(2)" id="lvl-btn-2" class="lvl-tab px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Lvl 2: Active RABS</button>
+          <button onclick="setLevel(3)" id="lvl-btn-3" class="lvl-tab px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Lvl 3: Isolator RTP</button>
+        </div>
       </div>
     </div>
 
-    <div class="card" style="flex:1; display:flex; flex-direction:column;">
-      <h3>21 CFR Part 11 Audit Trail</h3>
-      <div class="log-box" id="auditLog"></div>
+    <!-- Center: Live Cleanroom Telemetry & Compliance Score -->
+    <div class="rbx-panel rounded-2xl px-4 py-2 flex items-center gap-4 pointer-events-auto">
+      <div class="text-center">
+        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Grade A Airflow</div>
+        <div id="hud-air-state" class="roblox-font text-sm sm:text-base font-bold text-emerald-400">UNIDIRECTIONAL</div>
+      </div>
+      <div class="h-7 w-px bg-slate-700"></div>
+      <div class="text-center">
+        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">ΔP Cascade</div>
+        <div id="hud-dp-val" class="mono-font text-sm sm:text-base font-bold text-sky-300">+14.0 Pa</div>
+      </div>
+      <div class="h-7 w-px bg-slate-700"></div>
+      <div class="text-center">
+        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Compliance</div>
+        <div id="hud-score" class="roblox-font text-sm sm:text-base font-bold text-emerald-400">100%</div>
+      </div>
+    </div>
+
+    <!-- Right: Audit Action & GitHub Export Button -->
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <button onclick="startAudit()" id="audit-btn" class="rbx-btn rbx-panel rounded-2xl px-3.5 py-2.5 bg-emerald-600/90 hover:bg-emerald-500 border-emerald-300/40 text-white font-bold text-xs sm:text-sm flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
+        <span id="audit-btn-text">Run 10s Audit</span>
+      </button>
+
+      <button onclick="openGitHubModal()" class="rbx-btn rbx-panel rounded-2xl px-3.5 py-2.5 bg-slate-800/95 hover:bg-slate-700 border-slate-500/40 text-white font-semibold text-xs sm:text-sm flex items-center gap-2">
+        <!-- GitHub Octocat SVG -->
+        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+        </svg>
+        <span class="hidden sm:inline">Copy GitHub Code</span>
+        <span class="sm:hidden">Code</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- LEFT COLLAPSIBLE HVAC & CLEANROOM CONTROLS PANEL -->
+  <aside id="controls-panel" class="fixed left-3 top-24 z-20 w-72 sm:w-80 rbx-panel rounded-2xl p-3.5 transition-all">
+    <div class="flex items-center justify-between mb-2.5">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+        <h2 class="roblox-font text-sm font-bold uppercase tracking-wide text-slate-200">HVAC & Line Controls</h2>
+      </div>
+      <button onclick="toggleControls()" id="toggle-ctrl-btn" class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800">Hide</button>
+    </div>
+
+    <div id="controls-body" class="space-y-3">
+      <!-- HEPA Face Velocity -->
+      <div class="bg-slate-900/70 rounded-xl p-2.5 border border-slate-700/60">
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-slate-300 font-medium">HEPA Face Velocity</span>
+          <span id="val-velocity" class="mono-font font-bold text-sky-400">0.45 m/s</span>
+        </div>
+        <input type="range" id="slider-velocity" min="0.10" max="0.80" step="0.01" value="0.45" class="w-full" />
+        <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+          <span>0.10 (Stall)</span>
+          <span class="text-emerald-400 font-semibold">0.36–0.54 Annex 1</span>
+          <span>0.80 (Rebound)</span>
+        </div>
+      </div>
+
+      <!-- Differential Pressure -->
+      <div class="bg-slate-900/70 rounded-xl p-2.5 border border-slate-700/60">
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-slate-300 font-medium">Room ΔP (Grade A → B)</span>
+          <span id="val-dp" class="mono-font font-bold text-sky-400">14 Pa</span>
+        </div>
+        <input type="range" id="slider-dp" min="0" max="25" step="1" value="14" class="w-full" />
+        <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+          <span class="text-rose-400">0 Pa (Backflow)</span>
+          <span class="text-emerald-400 font-semibold">≥ 12 Pa Target</span>
+          <span>25 Pa</span>
+        </div>
+      </div>
+
+      <!-- Conveyor / Production State -->
+      <div class="bg-slate-900/70 rounded-xl p-2.5 border border-slate-700/60">
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-slate-300 font-medium">Line Speed (Vials/min)</span>
+          <span id="val-speed" class="mono-font font-bold text-amber-300">180 vpm</span>
+        </div>
+        <input type="range" id="slider-speed" min="0" max="300" step="10" value="180" class="w-full" />
+        <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+          <span>0 (At-Rest)</span>
+          <span>In-Operation Dynamic</span>
+          <span>300 (Max)</span>
+        </div>
+      </div>
+
+      <!-- Worst-Case Intervention & Boundary Toggles -->
+      <div class="grid grid-cols-2 gap-2 pt-0.5">
+        <button onclick="toggleIntervention()" id="btn-intervention" class="rbx-btn rounded-xl p-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 flex flex-col items-center gap-1">
+          <span>🧤 Glove Intervention</span>
+          <span id="status-intervention" class="text-[10px] uppercase text-slate-400">OFF (Clear)</span>
+        </button>
+
+        <button onclick="toggleBoundarySmoke()" id="btn-gradeb-smoke" class="rbx-btn rounded-xl p-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 flex flex-col items-center gap-1">
+          <span>🌫️ Grade B Challenge</span>
+          <span id="status-gradeb" class="text-[10px] uppercase text-emerald-400">ACTIVE</span>
+        </button>
+      </div>
+
+      <!-- Level Brief Box -->
+      <div id="level-brief" class="bg-sky-950/50 border border-sky-500/30 rounded-xl p-2.5 text-[11px] text-sky-100 leading-relaxed">
+        <strong>Level 1 Objective:</strong> Move the WFI Smoke Wand over the open sterile vials beneath the Grade A Laminar Airflow Hood. Verify parallel downward streamlines and zero Grade B ingress under the glass sash.
+      </div>
     </div>
   </aside>
-</div>
 
-<!-- Start / Role Selection Modal -->
-<div class="modal-backdrop" id="startModal">
-  <div class="modal">
-    <h2>🏭 STERILE OPS: PIC/S Annex 1:2022 Cleanroom Simulator</h2>
-    <p class="sub">Walk your blocky GMP specialist through Grade D → C → B → Grade A RABS/Isolator zones. Maintain positive pressure cascades, protect First Air, pass PUPSIT & Environmental Monitoring, and release 500 sterile vials without a Critical Observation!</p>
-    <div class="role-grid" id="roleGrid"></div>
-    <button class="btn primary" onclick="startGame()">▶ Enter Cleanroom Airlock & Start Shift</button>
+  <!-- RIGHT LIVE LEGEND & CAMERA PRESETS -->
+  <div class="fixed right-3 top-24 z-20 hidden md:flex flex-col gap-2 w-56 pointer-events-auto">
+    <div class="rbx-panel rounded-2xl p-3">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Smoke Plume Legend</div>
+      <div class="space-y-1.5 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-cyan-300 shadow-[0_0_8px_#67e8f9]"></span>
+          <span>Laminar First Air (Pass)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]"></span>
+          <span>Eddy / Wake Turbulence</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]"></span>
+          <span>Backflow / Vial Ingress</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="rbx-panel rounded-2xl p-3">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Camera Views (Dual-Axis)</div>
+      <div class="grid grid-cols-2 gap-1.5 text-xs">
+        <button onclick="setCameraPreset('iso')" class="rbx-btn bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg font-semibold">3D Orbit</button>
+        <button onclick="setCameraPreset('front')" class="rbx-btn bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg font-semibold">Cam A: Front</button>
+        <button onclick="setCameraPreset('side')" class="rbx-btn bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg font-semibold">Cam B: Side</button>
+        <button onclick="setCameraPreset('chute')" class="rbx-btn bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg font-semibold">Cam C: Chute</button>
+      </div>
+      <p class="text-[10px] text-slate-400 mt-2 leading-tight">
+        <strong>Controls:</strong> Move cursor to aim Smoke Wand • Hold Click/Touch to spray • Right-drag or WASD/Arrows to orbit camera.
+      </p>
+    </div>
   </div>
-</div>
 
-<!-- Deviation / PIC/S Audit Modal -->
-<div class="modal-backdrop" id="eventModal" style="display:none;">
-  <div class="modal">
-    <h2 id="evTitle">⚠️ GMP Deviation Detected</h2>
-    <p class="sub" id="evDesc"></p>
-    <div id="evChoices"></div>
+  <!-- BOTTOM ROBLOX HOTBAR -->
+  <div class="fixed bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rbx-panel rounded-2xl p-2 pointer-events-auto">
+    <button onclick="toggleContinuousSpray()" id="hotbar-spray" class="rbx-btn px-3.5 py-2 rounded-xl bg-sky-600 border border-sky-300/50 text-white text-xs sm:text-sm font-bold flex items-center gap-2">
+      <span>💨</span>
+      <span id="spray-mode-label">Continuous Fog: ON</span>
+    </button>
+
+    <button onclick="clearSmoke()" class="rbx-btn px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 text-xs sm:text-sm font-semibold">
+      Clear Fog
+    </button>
+
+    <button onclick="resetOptimalPreset()" class="rbx-btn px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-emerald-300 text-xs sm:text-sm font-semibold">
+      Auto-Balance Annex 1
+    </button>
   </div>
-</div>
 
-<script>
-// ==================== GAME CONFIGURATION & ANNEX 1 DATA ====================
-const ROLES = [
-  { id: 'operator', icon: '🧪', name: 'Aseptic Operator', desc: 'Master of RABS/Isolator glove interventions and First Air protection.', perk: '+35% Filling Speed & Safer Interventions', fillBonus: 1.35, emBonus: 1, hvacBonus: 1, auditBonus: 0 },
-  { id: 'micro', icon: '🔬', name: 'QC Microbiologist', desc: 'Detects viable excursions early and trends Grade A/B settle plates.', perk: '2x EM Accuracy & -40% Contamination Growth', fillBonus: 1, emBonus: 2, hvacBonus: 1, auditBonus: 5 },
-  { id: 'engineer', icon: '🛠️', name: 'Facilities Engineer', desc: 'Maintains HEPA H14 integrity and ΔP airlock cascades.', perk: '2x Pressure Cascade Stability', fillBonus: 1, emBonus: 1, hvacBonus: 2, auditBonus: 0 },
-  { id: 'qa', icon: '📋', name: 'QA Release Specialist', desc: 'Commands Contamination Control Strategy (CCS) & PIC/S audits.', perk: '+15% Audit Score & Higher Batch Revenue', fillBonus: 1.1, emBonus: 1.2, hvacBonus: 1, auditBonus: 15 }
-];
+  <!-- AUDIT PROGRESS BANNER -->
+  <div id="audit-banner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-30 rbx-panel border-emerald-400/60 rounded-2xl px-5 py-2.5 flex items-center gap-3 shadow-2xl">
+    <div class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></div>
+    <div class="text-xs sm:text-sm font-bold text-white">
+      RECORDING GxP VIDEO AUDIT: <span id="audit-timer" class="mono-font text-emerald-400">10.0s</span>
+    </div>
+  </div>
 
-// Cleanroom Isometric Map Layout (16 x 12 grid)
-// Zones: D (0..3), C (4..7), B (8..11), A (12..15)
-const COLS = 16;
-const ROWS = 12;
+  <!-- PIC/S ANNEX 1 INSPECTION REPORT MODAL -->
+  <div id="report-modal" class="hidden fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="rbx-panel max-w-xl w-full rounded-3xl p-6 border-2 border-slate-600 shadow-2xl">
+      <div class="flex items-start justify-between gap-4 border-b border-slate-700 pb-4">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-sky-400">PIC/S PE 009 Annex 1 Qualification Report</span>
+          <h3 id="report-title" class="roblox-font text-2xl font-bold text-white mt-0.5">AIRFLOW STUDY PASSED</h3>
+        </div>
+        <div id="report-badge" class="px-3 py-1 rounded-xl text-sm font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+          PASS (98%)
+        </div>
+      </div>
 
-const ZONES = {
-  D: { name: 'GRADE D — Component Prep & Autoclave', color: '#3b6ea5', top: '#4dabf7', limit: '≥15 Pa vs CNC | Max 3,520,000 particles/m³ (≥0.5µm)', targetDp: 15 },
-  C: { name: 'GRADE C — Bulk Solution Compounding', color: '#2b8a7e', top: '#3bc9db', limit: '≥30 Pa | Max 352,000 particles/m³ | 0.22µm Filtration', targetDp: 30 },
-  B: { name: 'GRADE B — Aseptic Background & Gowning', color: '#b86b28', top: '#ffa94d', limit: '≥45 Pa | Max 3,520 particles/m³ | Full Sterile Coveralls', targetDp: 45 },
-  A: { name: 'GRADE A — RABS / Isolator Filling Zone', color: '#a83232', top: '#ff6b6b', limit: '≥60 Pa | Unidirectional Airflow 0.45 m/s | ISO 4.8 (<3,520)', targetDp: 60 }
-};
+      <div id="report-body" class="py-4 space-y-2.5 text-xs sm:text-sm text-slate-200">
+        <!-- Populated dynamically after 10s audit -->
+      </div>
 
-// Interactive Stations in the 3D Cleanroom
-const STATIONS = [
-  { id: 'autoclave', gx: 1.5, gy: 2.5, zone: 'D', label: 'Steam Autoclave', icon: '♨️', color: '#74c0fc', desc: 'Sterilize stoppers & glassware (121°C, 20 min)' },
-  { id: 'compounding', gx: 5.5, gy: 3.0, zone: 'C', label: 'Compounding Vessel & PUPSIT', icon: '⚗️', color: '#4ecdc4', desc: 'Mix sterile API & run 0.22µm filter integrity' },
-  { id: 'airlock', gx: 7.5, gy: 6.0, zone: 'B', label: 'Grade B PAL / MAL Airlock', icon: '🚪', color: '#ffa657', desc: 'Verify differential pressure cascade & gowning' },
-  { id: 'em_station', gx: 9.5, gy: 2.5, zone: 'B', label: 'Viable EM & Particle Cart', icon: '📡', color: '#ffd43b', desc: 'Sample active air & settle plates in Grade B/A' },
-  { id: 'isolator', gx: 13.5, gy: 5.5, zone: 'A', label: 'Grade A RABS / Isolator Line', icon: '💉', color: '#ff6b6b', desc: 'Aseptic vial filling, stoppering & glove ports' },
-  { id: 'qa_desk', gx: 13.5, gy: 9.5, zone: 'A', label: 'Batch Release & Audit Terminal', icon: '📋', color: '#a371f7', desc: 'Review 21 CFR Part 11 logs & release batch' }
-];
+      <div class="flex flex-wrap justify-end gap-2 pt-3 border-t border-slate-700">
+        <button onclick="closeReportModal()" class="rbx-btn px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm">
+          Continue Inspecting
+        </button>
+        <button onclick="nextLevelFromReport()" id="report-next-btn" class="rbx-btn px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-sm">
+          Next Cleanroom Level →
+        </button>
+      </div>
+    </div>
+  </div>
 
-const AUDIT_SCENARIOS = [
-  {
-    title: 'PIC/S Inspector Observation: Grade A Airflow Visualization',
-    desc: 'During dynamic filling in the Grade A RABS, an operator reaches directly over an open uncapped vial to clear a fallen stopper with forceps. What is the Annex 1:2022 ruling?',
-    choices: [
-      { text: 'CRITICAL DEFICIENCY: Violates First Air protection over open sterile product. Reject affected vials, perform line clearance & re-sanitize.', ok: true, msg: 'Spot-on! Annex 1 §4.15 strictly prohibits obstructing unidirectional First Air above open containers.' },
-      { text: 'MINOR OBSERVATION: Acceptable if the operator sprayed 70% IPA on their gloves 10 minutes earlier.', ok: false, msg: 'Incorrect! Reaching over open vials directly compromises sterility assurance regardless of glove sanitization.' },
-      { text: 'NO FINDING: Forceps are sterile stainless steel so First Air interruption is permitted.', ok: false, msg: 'Incorrect! Eddy currents from forceps/gloves sweep particles into open vials.' }
-    ]
-  },
-  {
-    title: 'PIC/S Inspector Observation: PUPSIT Requirement (Annex 1 §8.87)',
-    desc: 'Your sterile bulk solution passes through a single 0.22 µm sterilizing-grade filter before entering the Grade A isolator. The inspector asks for Pre-Use Post-Sterilization Integrity Testing (PUPSIT) records.',
-    choices: [
-      { text: 'Present automated Bubble Point / Diffusive Flow test performed AFTER steam sterilization and BEFORE batch filtration.', ok: true, msg: 'Compliant! PUPSIT detects filter flaws masked by product wetting or damaged during SIP/autoclaving.' },
-      { text: 'Explain that only post-use integrity testing is needed because the filter certificate from the vendor is on file.', ok: false, msg: 'Non-compliant! Annex 1 requires PUPSIT unless a formal, validated risk assessment justifies alternative controls.' },
-      { text: 'Perform PUPSIT after the batch is filled so the filter stays completely dry during production.', ok: false, msg: 'Incorrect! PUPSIT must occur pre-use (after sterilization, prior to filtration).' }
-    ]
-  },
-  {
-    title: 'PIC/S Inspector Observation: Differential Pressure Drop',
-    desc: 'The Grade B to Grade C airlock differential pressure drops from 15 Pa to 4 Pa for 12 minutes while filling is active. What immediate action does Annex 1 require?',
-    choices: [
-      { text: 'Pause aseptic filling immediately, segregate vials produced during the excursion, and investigate HVAC/door interlocks.', ok: true, msg: 'Correct! Loss of pressure cascade risks ingress of lower-grade air into the aseptic core.' },
-      { text: 'Continue filling and double the settle plate exposure time at the end of the shift.', ok: false, msg: 'Major/Critical GMP violation! You cannot continue aseptic filling without cascading containment.' },
-      { text: 'Turn off the Grade A laminar flow hood to equalize room pressure.', ok: false, msg: 'Catastrophic error! Shutting off Grade A LAF destroys ISO 4.8 protection.' }
-    ]
-  }
-];
+  <!-- GITHUB SOURCE CODE EXPORT MODAL -->
+  <div id="github-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
+    <div class="rbx-panel max-w-4xl w-full max-h-[90vh] rounded-3xl p-5 sm:p-6 flex flex-col border-2 border-sky-500/40 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+        <div>
+          <h3 class="roblox-font text-xl sm:text-2xl font-bold text-white">GitHub Repository Export (`index.html`)</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Single-file WebGL / Three.js build — zero build tools required. Ready for GitHub Pages.</p>
+        </div>
+        <button onclick="closeGitHubModal()" class="rbx-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm">✕</button>
+      </div>
 
-// ==================== GAME STATE ====================
-let state = {
-  started: false,
-  role: ROLES[0],
-  vials: 0,
-  targetVials: 500,
-  score: 100,
-  cash: 12500,
-  timeSec: 480, // 8-minute shift
-  particlesA: 0,
-  dp: { D: 16, C: 32, B: 47, A: 63 },
-  preparedComponents: 2,
-  filteredBulk: 2,
-  glovesVerified: true,
-  player: { x: 1.5, y: 5.5, tx: 1.5, ty: 5.5, dir: 0, bob: 0 },
-  nearbyStation: null,
-  hazards: [], // { id, gx, gy, type, label }
-  particlesFx: [],
-  auditIndex: 0,
-  gameOver: false
-};
+      <!-- Quick GitHub Deploy Steps -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 my-3 text-xs">
+        <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+          <span class="font-bold text-sky-400">1. Create Repo:</span> Create a new public repository on GitHub (e.g., <code class="text-slate-300">cleanroom-smoke-3d</code>).
+        </div>
+        <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+          <span class="font-bold text-sky-400">2. Add index.html:</span> Click <strong>Add file → Create new file</strong>, name it <code class="text-slate-300">index.html</code>, and paste the code below.
+        </div>
+        <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+          <span class="font-bold text-sky-400">3. GitHub Pages:</span> Go to <strong>Settings → Pages → Deploy from main</strong> to get a playable live URL.
+        </div>
+      </div>
 
-// ==================== INIT ROLE UI ====================
-const roleGrid = document.getElementById('roleGrid');
-ROLES.forEach((r, idx) => {
-  const div = document.createElement('div');
-  div.className = 'role-card' + (idx === 0 ? ' selected' : '');
-  div.innerHTML = `<div class="icon">${r.icon}</div><h4>${r.name}</h4><p>${r.desc}</p><span class="tag">${r.perk}</span>`;
-  div.onclick = () => {
-    document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
-    div.classList.add('selected');
-    state.role = r;
-  };
-  roleGrid.appendChild(div);
-});
+      <!-- Copy Bar -->
+      <div class="flex items-center justify-between bg-slate-900 px-3 py-2 rounded-t-xl border border-b-0 border-slate-700">
+        <span class="mono-font text-xs text-slate-400">index.html (Complete Standalone Source)</span>
+        <button onclick="copySourceToClipboard()" id="copy-code-btn" class="rbx-btn px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5">
+          <span>📋 Copy Full Code to Clipboard</span>
+        </button>
+      </div>
 
-function startGame() {
-  document.getElementById('startModal').style.display = 'none';
-  state.started = true;
-  state.score = Math.min(100, 95 + state.role.auditBonus);
-  addLog(`Shift started as ${state.role.name}. Contamination Control Strategy (CCS) active.`, 'ok');
-  addLog(`Walk to Grade D Autoclave -> Grade C Compounding -> Grade A Isolator to fill 500 vials!`, 'info');
-  spawnHazard();
-}
+      <!-- Read-Only Code Viewer -->
+      <textarea id="github-code-textarea" readonly class="selectable-code mono-font w-full flex-1 min-h-[240px] bg-slate-950 text-emerald-300 text-xs p-3.5 rounded-b-xl border border-slate-700 focus:outline-none resize-none"></textarea>
+    </div>
+  </div>
 
-function addLog(msg, type = 'info') {
-  const box = document.getElementById('auditLog');
-  const now = new Date();
-  const ts = now.toTimeString().split(' ')[0];
-  const div = document.createElement('div');
-  div.className = `log-item ${type}`;
-  div.innerHTML = `<b>[${ts}]</b> ${msg}`;
-  box.prepend(div);
-  if (box.children.length > 40) box.lastChild.remove();
-}
+  <!-- MAIN 3D SIMULATION & GAME ENGINE SCRIPT -->
+  <script>
+    /**
+     * ============================================================================
+     * LAMINAR FLOW 3D: PIC/S PE 009 ANNEX 1 CLEANROOM SMOKE STUDY SIMULATOR
+     * ============================================================================
+     * Architecture:
+     *  - Three.js r128 WebGL Scene with Roblox-inspired blocky cleanroom assets
+     *  - Real-time 3D fluid-particle advection engine modeling:
+     *      1) Overhead HEPA Unidirectional Downflow (0.36 - 0.54 m/s sweet spot)
+     *      2) Work-surface stagnation & high-velocity rebound eddies (> 0.60 m/s)
+     *      3) Differential pressure cascade (Grade A -> Grade B boundary sweep)
+     *      4) Level-specific barriers:
+     *         - Level 1: Open LAF Hood with glass sash lip
+     *         - Level 2: Active RABS with mousehole exit chute & glove ports
+     *         - Level 3: Closed Isolator with Rapid Transfer Port (RTP) seal
+     * ============================================================================
+     */
 
-// ==================== CLEANROOM OPERATIONS ====================
-function getZoneAt(gx) {
-  if (gx < 4) return 'D';
-  if (gx < 8) return 'C';
-  if (gx < 12) return 'B';
-  return 'A';
-}
-
-function spawnHazard() {
-  if (state.hazards.length >= 3) return;
-  const types = [
-    { type: 'spill', label: '💧 WFI / Buffer Condensate', penalty: 3 },
-    { type: 'vial', label: '🧪 Fallen Vial (Use Forceps!)', penalty: 5 },
-    { type: 'particle', label: '🌫️ HEPA Filter Seal Drift', penalty: 4 }
-  ];
-  const pick = types[Math.floor(Math.random() * types.length)];
-  const gx = 2 + Math.floor(Math.random() * 13);
-  const gy = 1 + Math.floor(Math.random() * 10);
-  state.hazards.push({ id: Date.now() + Math.random(), gx, gy, ...pick });
-  addLog(`ALERT: ${pick.label} detected in Grade ${getZoneAt(gx)}! Walk over & press [E] to remediate.`, 'warn');
-}
-
-function triggerInteraction() {
-  if (!state.started || state.gameOver) return;
-
-  // 1. Check nearby hazard remediation first
-  const hzIdx = state.hazards.findIndex(h => Math.hypot(h.gx - state.player.x, h.gy - state.player.y) < 1.5);
-  if (hzIdx !== -1) {
-    const hz = state.hazards[hzIdx];
-    state.hazards.splice(hzIdx, 1);
-    state.score = Math.min(100, state.score + 3);
-    state.particlesA = Math.max(0, state.particlesA - 12);
-    spawnBurst(hz.gx, hz.gy, '#3fb950');
-    addLog(`Remediated ${hz.label} per SOP-CLEAN-04. +3% CCS Score.`, 'ok');
-    return;
-  }
-
-  // 2. Check station interaction
-  const st = state.nearbyStation;
-  if (!st) return;
-
-  if (st.id === 'autoclave') {
-    state.preparedComponents += 2;
-    state.cash -= 100;
-    spawnBurst(st.gx, st.gy, '#74c0fc');
-    addLog(`Autoclave Cycle #${state.preparedComponents / 2} complete: Sterile stoppers & vials ready (+2 batches).`, 'ok');
-  } else if (st.id === 'compounding') {
-    if (state.preparedComponents <= 0) {
-      addLog(`No sterilized components! Visit Grade D Autoclave first.`, 'warn');
-      return;
-    }
-    state.preparedComponents--;
-    state.filteredBulk += 2;
-    spawnBurst(st.gx, st.gy, '#4ecdc4');
-    addLog(`Bulk compounded & sterile-filtered (0.22µm). Ready for Grade A filling.`, 'ok');
-  } else if (st.id === 'airlock') {
-    state.dp = { D: 16, C: 32, B: 48, A: 64 };
-    spawnBurst(st.gx, st.gy, '#ffa657');
-    addLog(`Airlock interlocks & HVAC VFD balanced. All ΔP cascades restored to ≥15 Pa steps.`, 'ok');
-  } else if (st.id === 'em_station') {
-    runEMSample();
-  } else if (st.id === 'isolator') {
-    if (state.filteredBulk <= 0) {
-      addLog(`Isolator surge tank empty! Compound & filter bulk in Grade C first.`, 'warn');
-      return;
-    }
-    if (state.dp.A < 52) {
-      state.score -= 8;
-      addLog(`DEVIATION: Attempted Grade A filling while ΔP < 52 Pa! -8% CCS Score.`, 'crit');
-      return;
-    }
-    if (!state.glovesVerified) {
-      state.score -= 6;
-      addLog(`DEVIATION: RABS/Isolator glove integrity check overdue! Run Glove Test first.`, 'crit');
-      return;
-    }
-    state.filteredBulk--;
-    const filled = Math.round(50 * state.role.fillBonus);
-    state.vials = Math.min(state.targetVials, state.vials + filled);
-    state.cash += filled * 12;
-    state.glovesVerified = Math.random() > 0.35; // Periodic glove re-check needed
-    spawnBurst(st.gx, st.gy, '#ff6b6b');
-    addLog(`Aseptic Fill: +${filled} sterile vials sealed under ISO 4.8 First Air (+$${filled * 12}).`, 'ok');
-    if (state.vials >= state.targetVials) {
-      endGame(true, 'Batch Target Achieved! All 500 sterile vials filled and passed PIC/S Annex 1 release criteria.');
-    }
-  } else if (st.id === 'qa_desk') {
-    triggerAuditModal();
-  }
-}
-
-function runEMSample() {
-  if (state.cash < 150) return addLog('Insufficient budget for EM sampling.', 'warn');
-  state.cash -= 150;
-  const reduction = 18 * state.role.emBonus;
-  state.particlesA = Math.max(0, state.particlesA - reduction);
-  state.score = Math.min(100, state.score + 2);
-  spawnBurst(state.player.x, state.player.y, '#ffd43b');
-  addLog(`Viable settle plates & active air sampler logged (0 CFU in Grade A). Particles reduced.`, 'ok');
-}
-
-function performPUPSIT() {
-  if (state.cash < 250) return addLog('Insufficient budget for PUPSIT.', 'warn');
-  state.cash -= 250;
-  state.score = Math.min(100, state.score + 4);
-  addLog(`PUPSIT Bubble Point passed (3,850 mbar ≥ 3,450 mbar spec). Annex 1 §8.87 compliant.`, 'ok');
-}
-
-function gloveLeakTest() {
-  if (state.cash < 200) return addLog('Insufficient budget for Glove Leak Test.', 'warn');
-  state.cash -= 200;
-  state.glovesVerified = true;
-  state.score = Math.min(100, state.score + 2);
-  addLog(`Automated pressure-decay RABS/Isolator glove test PASSED (0 micro-pinholes).`, 'ok');
-}
-
-function sanitizeLine() {
-  if (state.cash < 180) return addLog('Insufficient budget for VHP/IPA sanitization.', 'warn');
-  state.cash -= 180;
-  state.particlesA = 0;
-  state.hazards = [];
-  addLog(`Sporicidal VHP cycle & 70% sterile IPA wipe-down completed across cleanroom.`, 'ok');
-}
-
-function triggerAuditModal() {
-  const sc = AUDIT_SCENARIOS[state.auditIndex % AUDIT_SCENARIOS.length];
-  state.auditIndex++;
-  const modal = document.getElementById('eventModal');
-  document.getElementById('evTitle').textContent = sc.title;
-  document.getElementById('evDesc').textContent = sc.desc;
-  const box = document.getElementById('evChoices');
-  box.innerHTML = '';
-  sc.choices.forEach(ch => {
-    const b = document.createElement('button');
-    b.className = 'choice-btn';
-    b.textContent = ch.text;
-    b.onclick = () => {
-      modal.style.display = 'none';
-      if (ch.ok) {
-        state.score = Math.min(100, state.score + 6);
-        state.cash += 1200;
-        addLog(`AUDIT PASSED: ${ch.msg} (+$1,200 QA Bonus)`, 'ok');
-      } else {
-        state.score = Math.max(0, state.score - 15);
-        addLog(`AUDIT OBSERVATION: ${ch.msg} (-15% CCS Score)`, 'crit');
-      }
+    // --- GLOBAL SIMULATION STATE ---
+    const state = {
+      level: 1,                  // 1 = LAF Hood, 2 = Active RABS, 3 = Closed Isolator
+      hepaVelocity: 0.45,        // m/s (Annex 1 target: 0.36 - 0.54)
+      diffPressure: 14,          // Pa (Annex 1 target: >= 12 Pa)
+      conveyorSpeed: 180,        // vials/min (0 = At-Rest, >0 = In-Operation)
+      interventionActive: false, // Simulates Roblox-style gloved arms reaching in
+      gradeBChallenge: true,     // Emits tracer smoke on Grade B side of boundary
+      continuousSpray: true,     // Continuous vs click-and-hold WFI smoke wand
+      isPointerDown: false,
+      wandWorldPos: new THREE.Vector3(0, 2.3, 0),
+      complianceScore: 100,
+      eddyCount: 0,
+      ingressCount: 0,
+      laminarCount: 0,
+      auditRunning: false,
+      auditTimeLeft: 10.0,
+      auditStats: { samples: 0, laminar: 0, eddy: 0, ingress: 0 },
+      camOrbit: { theta: 0.55, phi: 1.08, radius: 9.2, target: new THREE.Vector3(0, 1.4, 0) }
     };
-    box.appendChild(b);
-  });
-  modal.style.display = 'flex';
-}
 
-function endGame(win, reason) {
-  state.gameOver = true;
-  const modal = document.getElementById('eventModal');
-  document.getElementById('evTitle').textContent = win ? '🏆 BATCH RELEASED — ANNEX 1 COMPLIANT!' : '🚨 BATCH REJECTED — GMP CRITICAL FAILURE';
-  document.getElementById('evDesc').textContent = `${reason} | Final Vials: ${state.vials}/${state.targetVials} | CCS Compliance Score: ${Math.round(state.score)}% | Cash: $${state.cash.toLocaleString()}`;
-  const box = document.getElementById('evChoices');
-  box.innerHTML = `<button class="btn primary" onclick="location.reload()">↻ Start New Sterile Shift</button>`;
-  modal.style.display = 'flex';
-}
+    // --- AUDIO ENGINE (Tone.js Procedural Subtle Feedback) ---
+    let audioReady = false;
+    let chimeSynth = null;
+    function initAudio() {
+      if (audioReady) return;
+      try {
+        Tone.start();
+        chimeSynth = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: "triangle" },
+          envelope: { attack: 0.02, decay: 0.15, sustain: 0.1, release: 0.4 }
+        }).toDestination();
+        chimeSynth.volume.value = -14;
+        audioReady = true;
+      } catch (e) { /* Audio optional */ }
+    }
 
-// ==================== INPUT HANDLING ====================
-const keys = {};
-window.addEventListener('keydown', e => {
-  keys[e.key.toLowerCase()] = true;
-  if (e.key.toLowerCase() === 'e' || e.key === ' ') {
-    triggerInteraction();
-  }
-});
-window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+    function playTone(notes, duration = "16n") {
+      if (!audioReady || !chimeSynth) return;
+      try { chimeSynth.triggerAttackRelease(notes, duration); } catch (e) {}
+    }
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+    // --- THREE.JS SCENE SETUP ---
+    const canvas = document.getElementById("game-canvas");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-function resizeCanvas() {
-  const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width * window.devicePixelRatio;
-  canvas.height = rect.height * window.devicePixelRatio;
-  ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f172a);
+    scene.fog = new THREE.FogExp2(0x0f172a, 0.032);
 
-// Isometric Projection Helpers
-function getIsoMetrics() {
-  const w = canvas.parentElement.clientWidth;
-  const h = canvas.parentElement.clientHeight;
-  const tileW = Math.min(w / 18, h / 11, 56);
-  const tileH = tileW * 0.5;
-  const originX = w * 0.5 - ((COLS - ROWS) * tileW) / 4;
-  const originY = h * 0.23;
-  return { w, h, tileW, tileH, originX, originY };
-}
+    const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 100);
 
-function gridToScreen(gx, gy) {
-  const { tileW, tileH, originX, originY } = getIsoMetrics();
-  return {
-    x: originX + (gx - gy) * (tileW / 2),
-    y: originY + (gx + gy) * (tileH / 2)
-  };
-}
+    // --- LIGHTING (Cleanroom Overhead LED Panels + Tyndall Smoke Illumination) ---
+    const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.65);
+    scene.add(ambientLight);
 
-function screenToGrid(sx, sy) {
-  const { tileW, tileH, originX, originY } = getIsoMetrics();
-  const dx = sx - originX;
-  const dy = sy - originY;
-  const gx = (dx / (tileW / 2) + dy / (tileH / 2)) / 2;
-  const gy = (dy / (tileH / 2) - dx / (tileW / 2)) / 2;
-  return { gx, gy };
-}
+    const mainDirLight = new THREE.DirectionalLight(0xffffff, 0.95);
+    mainDirLight.position.set(5, 11, 6);
+    mainDirLight.castShadow = true;
+    mainDirLight.shadow.mapSize.width = 1024;
+    mainDirLight.shadow.mapSize.height = 1024;
+    scene.add(mainDirLight);
 
-canvas.addEventListener('click', e => {
-  if (!state.started || state.gameOver) return;
-  const rect = canvas.getBoundingClientRect();
-  const { gx, gy } = screenToGrid(e.clientX - rect.left, e.clientY - rect.top);
-  if (gx >= 0 && gx < COLS && gy >= 0 && gy < ROWS) {
-    state.player.tx = Math.max(0.4, Math.min(COLS - 0.4, gx));
-    state.player.ty = Math.max(0.4, Math.min(ROWS - 0.4, gy));
-  }
-});
+    // High-intensity Tyndall inspection light bar inside Grade A hood
+    const tyndallLight = new THREE.PointLight(0x38bdf8, 1.3, 9);
+    tyndallLight.position.set(0, 2.9, 0.5);
+    scene.add(tyndallLight);
 
-function spawnBurst(gx, gy, color) {
-  for (let i = 0; i < 14; i++) {
-    state.particlesFx.push({
-      gx, gy,
-      vx: (Math.random() - 0.5) * 0.12,
-      vy: (Math.random() - 0.5) * 0.12,
-      vz: 1.5 + Math.random() * 2,
-      z: 10,
-      life: 1,
-      color
+    // --- ROBLOX-STYLE MODULAR CLEANROOM ENVIRONMENT ---
+    const envGroup = new THREE.Group();
+    scene.add(envGroup);
+
+    // Materials
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45, metalness: 0.1 });
+    const gradeAFloorMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35, metalness: 0.15 });
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.28, metalness: 0.72 });
+    const darkSteelMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.4, metalness: 0.6 });
+    const hepaMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, emissive: 0x38bdf8, emissiveIntensity: 0.28, roughness: 0.2 });
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xbae6fd,
+      transparent: true,
+      opacity: 0.26,
+      roughness: 0.1,
+      metalness: 0.05,
+      side: THREE.DoubleSide
     });
-  }
-}
+    const gloveMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.45 });
 
-// ==================== SIMULATION LOOP ====================
-let lastTick = performance.now();
-let secondAccum = 0;
+    // Cleanroom Epoxy Floor + Grade A Floor Zone Mat
+    const floorMesh = new THREE.Mesh(new THREE.BoxGeometry(22, 0.4, 18), floorMat);
+    floorMesh.position.set(0, -0.2, 0);
+    floorMesh.receiveShadow = true;
+    envGroup.add(floorMesh);
 
-function update(dt) {
-  if (!state.started || state.gameOver) return;
+    const gradeAZoneHighlight = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.03, 3.4), gradeAFloorMat);
+    gradeAZoneHighlight.position.set(0, 0.015, 0);
+    envGroup.add(gradeAZoneHighlight);
 
-  // Keyboard movement overrides click target
-  let mx = 0, my = 0;
-  if (keys['w'] || keys['arrowup']) { mx -= 1; my -= 1; }
-  if (keys['s'] || keys['arrowdown']) { mx += 1; my += 1; }
-  if (keys['a'] || keys['arrowleft']) { mx -= 1; my += 1; }
-  if (keys['d'] || keys['arrowright']) { mx += 1; my -= 1; }
+    // Stainless Steel Filling Table / Work Deck (y = 1.0)
+    const tableDeck = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.16, 2.4), steelMat);
+    tableDeck.position.set(0, 1.0, 0);
+    tableDeck.castShadow = true;
+    tableDeck.receiveShadow = true;
+    envGroup.add(tableDeck);
 
-  const speed = 4.2 * dt;
-  if (mx !== 0 || my !== 0) {
-    const len = Math.hypot(mx, my);
-    state.player.x = Math.max(0.4, Math.min(COLS - 0.4, state.player.x + (mx / len) * speed));
-    state.player.y = Math.max(0.4, Math.min(ROWS - 0.4, state.player.y + (my / len) * speed));
-    state.player.tx = state.player.x;
-    state.player.ty = state.player.y;
-    state.player.bob += dt * 14;
-  } else {
-    const dx = state.player.tx - state.player.x;
-    const dy = state.player.ty - state.player.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist > 0.08) {
-      state.player.x += (dx / dist) * Math.min(dist, speed);
-      state.player.y += (dy / dist) * Math.min(dist, speed);
-      state.player.bob += dt * 14;
-    } else {
-      state.player.bob = 0;
-    }
-  }
+    // Table Legs (Blocky Roblox aesthetic)
+    [[-2.5, -1.0], [2.5, -1.0], [-2.5, 1.0], [2.5, 1.0]].forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.0, 0.18), darkSteelMat);
+      leg.position.set(lx, 0.5, lz);
+      leg.castShadow = true;
+      envGroup.add(leg);
+    });
 
-  // Zone Detection & Banner Update
-  const zKey = getZoneAt(state.player.x);
-  const zInfo = ZONES[zKey];
-  document.getElementById('zoneTitle').innerHTML = `<span style="color:${zInfo.top}">■</span> ${zInfo.name}`;
-  document.getElementById('zoneReq').textContent = zInfo.limit;
+    // Overhead HEPA Filter Canopy (y = 3.2)
+    const canopyFrame = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.35, 2.6), steelMat);
+    canopyFrame.position.set(0, 3.35, 0);
+    canopyFrame.castShadow = true;
+    envGroup.add(canopyFrame);
 
-  // Proximity Detection
-  let closest = null;
-  let minDist = 1.65;
-  STATIONS.forEach(st => {
-    const d = Math.hypot(st.gx - state.player.x, st.gy - state.player.y);
-    if (d < minDist) { minDist = d; closest = st; }
-  });
-  state.nearbyStation = closest;
-
-  const nearHazard = state.hazards.find(h => Math.hypot(h.gx - state.player.x, h.gy - state.player.y) < 1.5);
-  const prompt = document.getElementById('interactPrompt');
-  if (nearHazard) {
-    prompt.style.display = 'flex';
-    prompt.textContent = `🧹 Press [E] to Remediate: ${nearHazard.label}`;
-  } else if (closest) {
-    prompt.style.display = 'flex';
-    prompt.textContent = `${closest.icon} Press [E] — ${closest.label}`;
-  } else {
-    prompt.style.display = 'none';
-  }
-
-  // FX Particles
-  state.particlesFx.forEach(p => {
-    p.gx += p.vx;
-    p.gy += p.vy;
-    p.z += p.vz;
-    p.vz -= 0.12;
-    p.life -= dt * 1.6;
-  });
-  state.particlesFx = state.particlesFx.filter(p => p.life > 0);
-
-  // 1-Second GMP Physics Tick
-  secondAccum += dt;
-  if (secondAccum >= 1) {
-    secondAccum -= 1;
-    state.timeSec--;
-
-    // Pressure drift
-    const drift = 0.35 / state.role.hvacBonus;
-    state.dp.A = Math.max(35, state.dp.A - (Math.random() * drift));
-    state.dp.B = Math.max(25, state.dp.B - (Math.random() * drift * 0.8));
-    state.dp.C = Math.max(15, state.dp.C - (Math.random() * drift * 0.6));
-
-    // Particle buildup from hazards or low ΔP
-    if (state.hazards.length > 0 || state.dp.A < 54) {
-      state.particlesA += Math.round((state.hazards.length * 4 + (state.dp.A < 54 ? 6 : 0)) / state.role.emBonus);
-    }
-    if (state.particlesA > 35) {
-      state.score = Math.max(0, state.score - 1.5);
+    // 4 Modular HEPA Filter Panels with glowing laminar diffusers
+    const hepaPanels = [];
+    for (let i = -1.5; i <= 1.5; i += 1.0) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.08, 2.2), hepaMat);
+      panel.position.set(i * 1.32, 3.16, 0);
+      envGroup.add(panel);
+      hepaPanels.push(panel);
     }
 
-    // Random GMP Event Spawner
-    if (Math.random() < 0.12) spawnHazard();
-    if (state.timeSec === 320 || state.timeSec === 160) triggerAuditModal();
+    // Back Wall of Grade A Enclosure
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(5.6, 2.2, 0.12), steelMat);
+    backWall.position.set(0, 2.1, -1.15);
+    envGroup.add(backWall);
 
-    updateHUD();
-
-    if (state.score <= 40) {
-      endGame(false, 'CCS Compliance Score fell below 40% due to unresolved contamination excursions.');
-    } else if (state.timeSec <= 0) {
-      endGame(state.vials >= state.targetVials, state.vials >= state.targetVials ? 'Shift completed!' : 'Shift ended before filling all 500 sterile vials.');
+    // Low-Wall Return Air Grilles (Annex 1 requirement for proper downward sweep)
+    for (let gx = -2.0; gx <= 2.0; gx += 1.0) {
+      const grille = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.22, 0.16), darkSteelMat);
+      grille.position.set(gx, 1.22, -1.12);
+      envGroup.add(grille);
     }
-  }
-}
 
-function updateHUD() {
-  document.getElementById('hudVials').textContent = `${state.vials} / ${state.targetVials}`;
-  const scoreEl = document.getElementById('hudScore');
-  scoreEl.textContent = `${Math.round(state.score)}%`;
-  scoreEl.style.color = state.score > 75 ? 'var(--ok)' : state.score > 50 ? 'var(--warn)' : 'var(--crit)';
+    // --- CONVEYOR BELT, STOPPER BOWL & MOVING STERILE VIALS ---
+    const conveyorTrack = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.08, 0.55), darkSteelMat);
+    conveyorTrack.position.set(0.3, 1.12, 0);
+    envGroup.add(conveyorTrack);
 
-  const pEl = document.getElementById('hudParticles');
-  pEl.textContent = `${state.particlesA} / m³`;
-  pEl.style.color = state.particlesA > 35 ? 'var(--crit)' : 'var(--text)';
+    // Stopper Vibratory Bowl (Left side of filling line)
+    const bowlBase = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.38, 0.35, 20), steelMat);
+    bowlBase.position.set(-1.65, 1.26, -0.35);
+    envGroup.add(bowlBase);
 
-  document.getElementById('hudCash').textContent = `$${state.cash.toLocaleString()}`;
-  const mins = String(Math.floor(state.timeSec / 60)).padStart(2, '0');
-  const secs = String(state.timeSec % 60).padStart(2, '0');
-  document.getElementById('hudTime').textContent = `${mins}:${secs}`;
+    // Filling Needles Manifold (Center Grade A Critical Point)
+    const needleBar = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.14, 0.22), darkSteelMat);
+    needleBar.position.set(-0.2, 1.75, 0);
+    envGroup.add(needleBar);
 
-  // Update Cascade Panel
-  const cascadeList = document.getElementById('cascadeList');
-  const grades = [
-    { key: 'A', label: 'Grade A (Isolator)', req: 55 },
-    { key: 'B', label: 'Grade B (Background)', req: 40 },
-    { key: 'C', label: 'Grade C (Compounding)', req: 25 },
-    { key: 'D', label: 'Grade D (Prep)', req: 12 }
-  ];
-  cascadeList.innerHTML = grades.map(g => {
-    const val = state.dp[g.key].toFixed(1);
-    const cls = val < g.req - 5 ? 'crit' : val < g.req ? 'warn' : '';
-    return `<div class="cascade-row ${cls}"><span>${g.label}</span><b>+${val} Pa</b></div>`;
-  }).join('');
-}
-
-// ==================== 3D ISOMETRIC ROBLOX-STYLE RENDERER ====================
-function drawIsoBlock(gx, gy, w, d, h, topCol, leftCol, rightCol) {
-  const { tileW, tileH } = getIsoMetrics();
-  const p0 = gridToScreen(gx, gy);
-  const p1 = gridToScreen(gx + w, gy);
-  const p2 = gridToScreen(gx + w, gy + d);
-  const p3 = gridToScreen(gx, gy + d);
-
-  // Left face
-  ctx.fillStyle = leftCol;
-  ctx.beginPath();
-  ctx.moveTo(p3.x, p3.y);
-  ctx.lineTo(p2.x, p2.y);
-  ctx.lineTo(p2.x, p2.y - h);
-  ctx.lineTo(p3.x, p3.y - h);
-  ctx.closePath();
-  ctx.fill();
-
-  // Right face
-  ctx.fillStyle = rightCol;
-  ctx.beginPath();
-  ctx.moveTo(p2.x, p2.y);
-  ctx.lineTo(p1.x, p1.y);
-  ctx.lineTo(p1.x, p1.y - h);
-  ctx.lineTo(p2.x, p2.y - h);
-  ctx.closePath();
-  ctx.fill();
-
-  // Top face
-  ctx.fillStyle = topCol;
-  ctx.beginPath();
-  ctx.moveTo(p0.x, p0.y - h);
-  ctx.lineTo(p1.x, p1.y - h);
-  ctx.lineTo(p2.x, p2.y - h);
-  ctx.lineTo(p3.x, p3.y - h);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-}
-
-function drawRobloxAvatar(gx, gy) {
-  const pos = gridToScreen(gx, gy);
-  const { tileW } = getIsoMetrics();
-  const s = tileW / 44;
-  const bounce = Math.abs(Math.sin(state.player.bob)) * 4 * s;
-  const zKey = getZoneAt(gx);
-
-  // Cleanroom gown color changes by grade (Roblox blocky avatar!)
-  const suitColor = zKey === 'A' || zKey === 'B' ? '#f8fafc' : zKey === 'C' ? '#74c0fc' : '#a5d8ff';
-  const suitShade = zKey === 'A' || zKey === 'B' ? '#cbd5e1' : '#4dabf7';
-
-  ctx.save();
-  ctx.translate(pos.x, pos.y - bounce);
-
-  // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  ctx.beginPath();
-  ctx.ellipse(0, bounce + 2 * s, 12 * s, 6 * s, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Blocky Legs
-  ctx.fillStyle = suitShade;
-  ctx.fillRect(-7 * s, -14 * s, 6 * s, 14 * s);
-  ctx.fillRect(1 * s, -14 * s, 6 * s, 14 * s);
-
-  // Blocky Torso
-  ctx.fillStyle = suitColor;
-  ctx.fillRect(-9 * s, -30 * s, 18 * s, 16 * s);
-  ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(-9 * s, -30 * s, 18 * s, 16 * s);
-
-  // Blocky Arms
-  ctx.fillStyle = suitShade;
-  ctx.fillRect(-13 * s, -29 * s, 4 * s, 14 * s);
-  ctx.fillRect(9 * s, -29 * s, 4 * s, 14 * s);
-
-  // Sterile Gloves (Blue Nitrile)
-  ctx.fillStyle = '#3b82f6';
-  ctx.fillRect(-13 * s, -17 * s, 4 * s, 4 * s);
-  ctx.fillRect(9 * s, -17 * s, 4 * s, 4 * s);
-
-  // Roblox-style Cylindrical/Block Head + Cleanroom Hood & Goggles
-  ctx.fillStyle = '#fde047';
-  ctx.fillRect(-7 * s, -43 * s, 14 * s, 12 * s);
-  // Cleanroom Hood
-  ctx.fillStyle = suitColor;
-  ctx.fillRect(-8 * s, -44 * s, 16 * s, 5 * s);
-  // Protective Goggles
-  ctx.fillStyle = '#38bdf8';
-  ctx.fillRect(-6 * s, -39 * s, 12 * s, 4 * s);
-
-  // Overhead Role Tag
-  ctx.font = `bold ${Math.max(10, Math.round(11 * s))}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(`${state.role.icon} ${state.role.name.split(' ')[0]}`, 0, -50 * s);
-
-  ctx.restore();
-}
-
-function render() {
-  const { w, h, tileW, tileH } = getIsoMetrics();
-  ctx.clearRect(0, 0, w, h);
-
-  // 1. Draw Cleanroom Floor Tiles by Annex 1 Grade
-  for (let gx = 0; gx < COLS; gx++) {
-    for (let gy = 0; gy < ROWS; gy++) {
-      const zKey = getZoneAt(gx);
-      const z = ZONES[zKey];
-      const p0 = gridToScreen(gx, gy);
-      const p1 = gridToScreen(gx + 1, gy);
-      const p2 = gridToScreen(gx + 1, gy + 1);
-      const p3 = gridToScreen(gx, gy + 1);
-
-      const checker = (gx + gy) % 2 === 0;
-      ctx.fillStyle = checker ? z.color : z.top;
-      ctx.globalAlpha = checker ? 0.35 : 0.25;
-      ctx.beginPath();
-      ctx.moveTo(p0.x, p0.y);
-      ctx.lineTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.lineTo(p3.x, p3.y);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.globalAlpha = 0.25;
-      ctx.strokeStyle = z.top;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+    for (let nx = -0.55; nx <= 0.15; nx += 0.23) {
+      const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.32, 8), steelMat);
+      needle.position.set(nx, 1.54, 0);
+      envGroup.add(needle);
     }
-  }
 
-  // 2. Draw Partition Walls between Grades (with Airlock Openings at gy = 5..6)
-  [4, 8, 12].forEach(wallX => {
-    for (let gy = 0; gy < ROWS; gy++) {
-      if (gy === 5 || gy === 6) continue; // Airlock doorway
-      drawIsoBlock(wallX - 0.1, gy, 0.2, 1, 26, 'rgba(148, 163, 184, 0.55)', 'rgba(100, 116, 139, 0.45)', 'rgba(71, 85, 105, 0.45)');
+    // Animated Sterile Vials along the conveyor
+    const vials = [];
+    const vialGlassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xe0f2fe,
+      transparent: true,
+      opacity: 0.75,
+      roughness: 0.1
+    });
+    const stopperMat = new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.5 });
+
+    for (let i = 0; i < 14; i++) {
+      const vialGroup = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.22, 12), vialGlassMat);
+      body.position.y = 0.11;
+      vialGroup.add(body);
+
+      const stopper = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.05, 12), stopperMat);
+      stopper.position.y = 0.23;
+      stopper.visible = false;
+      vialGroup.add(stopper);
+
+      vialGroup.position.set(-2.6 + i * 0.45, 1.16, 0);
+      envGroup.add(vialGroup);
+      vials.push({ group: vialGroup, stopper });
     }
-  });
 
-  // 3. Draw Hazards
-  state.hazards.forEach(hz => {
-    const pos = gridToScreen(hz.gx, hz.gy);
-    ctx.fillStyle = 'rgba(248, 81, 73, 0.35)';
-    ctx.beginPath();
-    ctx.ellipse(pos.x, pos.y, tileW * 0.4, tileH * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = '18px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(hz.label.split(' ')[0], pos.x, pos.y + 4);
-  });
+    // --- LEVEL-SPECIFIC BARRIER GEOMETRY GROUP ---
+    const barrierGroup = new THREE.Group();
+    scene.add(barrierGroup);
 
-  // 4. Draw Cleanroom Equipment Stations (3D Blocky Machines)
-  STATIONS.forEach(st => {
-    const isNear = state.nearbyStation && state.nearbyStation.id === st.id;
-    drawIsoBlock(st.gx - 0.5, st.gy - 0.5, 1.1, 1.1, isNear ? 28 : 22, st.color, '#1e293b', '#334155');
-    const topPos = gridToScreen(st.gx, st.gy);
-    ctx.font = '18px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(st.icon, topPos.x, topPos.y - 26);
+    function buildLevelBarrier(lvl) {
+      while (barrierGroup.children.length > 0) {
+        barrierGroup.remove(barrierGroup.children[0]);
+      }
 
-    ctx.font = 'bold 11px sans-serif';
-    ctx.fillStyle = isNear ? '#ffffff' : '#cbd5e1';
-    ctx.fillText(st.label, topPos.x, topPos.y - 42);
-  });
+      if (lvl === 1) {
+        // LEVEL 1: Open Laminar Airflow (LAF) Hood with Front Glass Sash (25cm opening at bottom)
+        const frontSash = new THREE.Mesh(new THREE.BoxGeometry(5.6, 1.55, 0.06), glassMat);
+        frontSash.position.set(0, 2.42, 1.15);
+        barrierGroup.add(frontSash);
 
-  // 5. Draw Player Avatar
-  drawRobloxAvatar(state.player.x, state.player.y);
+        // Sash bottom stainless lip
+        const sashLip = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.06, 0.09), steelMat);
+        sashLip.position.set(0, 1.65, 1.15);
+        barrierGroup.add(sashLip);
 
-  // 6. Draw 3D Particle Bursts
-  state.particlesFx.forEach(p => {
-    const pos = gridToScreen(p.gx, p.gy);
-    ctx.fillStyle = p.color;
-    ctx.globalAlpha = Math.max(0, p.life);
-    ctx.fillRect(pos.x - 3, pos.y - p.z, 6, 6);
-    ctx.globalAlpha = 1;
-  });
-}
+        // Side glass cheeks
+        [-2.8, 2.8].forEach(sx => {
+          const sideGlass = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.2, 2.3), glassMat);
+          sideGlass.position.set(sx, 2.1, 0);
+          barrierGroup.add(sideGlass);
+        });
+      } else if (lvl === 2) {
+        // LEVEL 2: Active RABS (Full front glass doors with 2 Glove Ports + Right Mousehole Exit Chute)
+        const rabsFront = new THREE.Mesh(new THREE.BoxGeometry(5.6, 2.18, 0.06), glassMat);
+        rabsFront.position.set(0, 2.1, 1.15);
+        barrierGroup.add(rabsFront);
 
-function gameLoop(now) {
-  const dt = Math.min(0.05, (now - lastTick) / 1000);
-  lastTick = now;
-  update(dt);
-  render();
-  requestAnimationFrame(gameLoop);
-}
+        // Glove port rings on front RABS wall
+        [-0.85, 0.35].forEach(gx => {
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 12, 24), darkSteelMat);
+          ring.position.set(gx, 1.85, 1.17);
+          barrierGroup.add(ring);
+        });
 
-updateHUD();
-requestAnimationFrame(gameLoop);
-</script>
+        // Left wall solid glass
+        const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.2, 2.3), glassMat);
+        leftWall.position.set(-2.8, 2.1, 0);
+        barrierGroup.add(leftWall);
+
+        // Right wall with Mousehole cutout (opening around conveyor at z=0, y=1.1..1.55)
+        const rightUpper = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.62, 2.3), glassMat);
+        rightUpper.position.set(2.8, 2.39, 0);
+        barrierGroup.add(rightUpper);
+
+        const rightFrontLower = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.58, 0.8), glassMat);
+        rightFrontLower.position.set(2.8, 1.29, 0.75);
+        barrierGroup.add(rightFrontLower);
+
+        const rightBackLower = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.58, 0.8), glassMat);
+        rightBackLower.position.set(2.8, 1.29, -0.75);
+        barrierGroup.add(rightBackLower);
+
+        // Highlighted Mousehole Frame
+        const chuteFrame = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.48, 0.72), new THREE.MeshStandardMaterial({
+          color: 0xf59e0b,
+          transparent: true,
+          opacity: 0.35
+        }));
+        chuteFrame.position.set(2.8, 1.32, 0);
+        barrierGroup.add(chuteFrame);
+      } else if (lvl === 3) {
+        // LEVEL 3: Closed Isolator with Rapid Transfer Port (RTP) Beta Canister on Right Wall
+        const isoFront = new THREE.Mesh(new THREE.BoxGeometry(5.6, 2.2, 0.08), glassMat);
+        isoFront.position.set(0, 2.1, 1.15);
+        barrierGroup.add(isoFront);
+
+        const isoLeft = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 2.3), glassMat);
+        isoLeft.position.set(-2.8, 2.1, 0);
+        barrierGroup.add(isoLeft);
+
+        const isoRight = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 2.3), glassMat);
+        isoRight.position.set(2.8, 2.1, 0);
+        barrierGroup.add(isoRight);
+
+        // RTP Alpha Flange + Docked Beta Canister
+        const rtpFlange = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.14, 24), darkSteelMat);
+        rtpFlange.rotation.z = Math.PI / 2;
+        rtpFlange.position.set(2.82, 1.75, 0);
+        barrierGroup.add(rtpFlange);
+
+        const betaCanister = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.85, 24), steelMat);
+        betaCanister.rotation.z = Math.PI / 2;
+        betaCanister.position.set(3.3, 1.75, 0);
+        barrierGroup.add(betaCanister);
+      }
+    }
+    buildLevelBarrier(1);
+
+    // --- ROBLOX-STYLE OPERATOR GLOVED ARMS (INTERVENTION OBSTACLE) ---
+    const operatorArmsGroup = new THREE.Group();
+    operatorArmsGroup.visible = false;
+    scene.add(operatorArmsGroup);
+
+    // Blocky Roblox forearm + hand reaching over the stopper bowl / filling line
+    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.22, 1.25), gloveMat);
+    leftArm.position.set(-0.85, 1.78, 0.65);
+    leftArm.rotation.x = 0.18;
+    operatorArmsGroup.add(leftArm);
+
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.22, 1.15), gloveMat);
+    rightArm.position.set(-0.25, 1.72, 0.65);
+    rightArm.rotation.x = 0.16;
+    operatorArmsGroup.add(rightArm);
+
+    // --- HANDHELD WFI ULTRASONIC SMOKE WAND ---
+    const wandGroup = new THREE.Group();
+    const wandHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.55, 12), darkSteelMat);
+    wandHandle.rotation.x = Math.PI / 2.4;
+    wandHandle.position.set(0, 0.12, 0.25);
+    wandGroup.add(wandHandle);
+
+    const wandTip = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 12), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+    wandGroup.add(wandTip);
+    scene.add(wandGroup);
+
+    // --- 3D SMOKE PARTICLE SYSTEM (650 VOLUMETRIC PUFFS) ---
+    const MAX_PARTICLES = 650;
+    const particles = [];
+    const puffGeo = new THREE.SphereGeometry(0.075, 8, 8);
+
+    const matLaminar = new THREE.MeshBasicMaterial({ color: 0x67e8f9, transparent: true, opacity: 0.58 });
+    const matEddy = new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.72 });
+    const matIngress = new THREE.MeshBasicMaterial({ color: 0xf43f5e, transparent: true, opacity: 0.85 });
+    const matGradeB = new THREE.MeshBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.42 });
+
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+      const mesh = new THREE.Mesh(puffGeo, matLaminar);
+      mesh.visible = false;
+      scene.add(mesh);
+      particles.push({
+        mesh,
+        active: false,
+        pos: new THREE.Vector3(),
+        vel: new THREE.Vector3(),
+        age: 0,
+        maxAge: 2.6,
+        source: "wand", // "wand" or "gradeB"
+        status: "laminar" // "laminar", "eddy", "ingress"
+      });
+    }
+
+    let particleCursor = 0;
+    function spawnSmokeParticle(origin, initialVel, source = "wand") {
+      const p = particles[particleCursor];
+      particleCursor = (particleCursor + 1) % MAX_PARTICLES;
+
+      p.active = true;
+      p.pos.copy(origin);
+      p.pos.x += (Math.random() - 0.5) * 0.08;
+      p.pos.y += (Math.random() - 0.5) * 0.06;
+      p.pos.z += (Math.random() - 0.5) * 0.08;
+      p.vel.copy(initialVel);
+      p.age = 0;
+      p.maxAge = source === "wand" ? 2.4 + Math.random() * 0.7 : 2.8;
+      p.source = source;
+      p.status = source === "gradeB" ? "gradeB" : "laminar";
+
+      p.mesh.visible = true;
+      p.mesh.position.copy(p.pos);
+      p.mesh.scale.setScalar(0.75);
+      p.mesh.material = source === "gradeB" ? matGradeB : matLaminar;
+    }
+
+    // --- POINTER RAYCASTING FOR SMOKE WAND AIMING ---
+    const raycaster = new THREE.Raycaster();
+    const pointerNDC = new THREE.Vector2(0, 0);
+    const aimPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0); // z = 0 plane through filling line
+
+    function updateWandFromPointer(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      pointerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(pointerNDC, camera);
+      const hitPoint = new THREE.Vector3();
+      if (raycaster.ray.intersectPlane(aimPlane, hitPoint)) {
+        // Clamp wand within cleanroom inspection bounds
+        hitPoint.x = Math.max(-2.6, Math.min(3.3, hitPoint.x));
+        hitPoint.y = Math.max(1.22, Math.min(3.02, hitPoint.y));
+        hitPoint.z = Math.max(-0.85, Math.min(1.45, hitPoint.z));
+        state.wandWorldPos.copy(hitPoint);
+      }
+    }
+
+    // --- CAMERA ORBIT & KEYBOARD CONTROLS ---
+    let isRightDragging = false;
+    let prevMouse = { x: 0, y: 0 };
+    const keysPressed = {};
+
+    function updateCameraPosition() {
+      const { theta, phi, radius, target } = state.camOrbit;
+      camera.position.x = target.x + radius * Math.sin(phi) * Math.sin(theta);
+      camera.position.y = target.y + radius * Math.cos(phi);
+      camera.position.z = target.z + radius * Math.sin(phi) * Math.cos(theta);
+      camera.lookAt(target);
+    }
+    updateCameraPosition();
+
+    canvas.addEventListener("pointerdown", (e) => {
+      initAudio();
+      if (e.button === 2 || e.shiftKey) {
+        isRightDragging = true;
+        prevMouse = { x: e.clientX, y: e.clientY };
+      } else {
+        state.isPointerDown = true;
+        updateWandFromPointer(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener("pointermove", (e) => {
+      if (isRightDragging) {
+        const dx = e.clientX - prevMouse.x;
+        const dy = e.clientY - prevMouse.y;
+        prevMouse = { x: e.clientX, y: e.clientY };
+        state.camOrbit.theta -= dx * 0.007;
+        state.camOrbit.phi = Math.max(0.35, Math.min(1.48, state.camOrbit.phi - dy * 0.007));
+        updateCameraPosition();
+      } else {
+        updateWandFromPointer(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener("pointerup", () => {
+      state.isPointerDown = false;
+      isRightDragging = false;
+    });
+
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    canvas.addEventListener("wheel", (e) => {
+      state.camOrbit.radius = Math.max(4.5, Math.min(14.5, state.camOrbit.radius + e.deltaY * 0.005));
+      updateCameraPosition();
+    }, { passive: true });
+
+    window.addEventListener("keydown", (e) => { keysPressed[e.key.toLowerCase()] = true; });
+    window.addEventListener("keyup", (e) => { keysPressed[e.key.toLowerCase()] = false; });
+
+    // --- UI CONTROL HANDLERS ---
+    const sliderVelocity = document.getElementById("slider-velocity");
+    const sliderDp = document.getElementById("slider-dp");
+    const sliderSpeed = document.getElementById("slider-speed");
+
+    sliderVelocity.addEventListener("input", (e) => {
+      state.hepaVelocity = parseFloat(e.target.value);
+      document.getElementById("val-velocity").textContent = `${state.hepaVelocity.toFixed(2)} m/s`;
+    });
+
+    sliderDp.addEventListener("input", (e) => {
+      state.diffPressure = parseInt(e.target.value, 10);
+      document.getElementById("val-dp").textContent = `${state.diffPressure} Pa`;
+      document.getElementById("hud-dp-val").textContent = `+${state.diffPressure.toFixed(1)} Pa`;
+    });
+
+    sliderSpeed.addEventListener("input", (e) => {
+      state.conveyorSpeed = parseInt(e.target.value, 10);
+      document.getElementById("val-speed").textContent =
+        state.conveyorSpeed === 0 ? "0 vpm (At-Rest)" : `${state.conveyorSpeed} vpm`;
+    });
+
+    function setLevel(lvl) {
+      initAudio();
+      playTone(["C5", "E5"], "16n");
+      state.level = lvl;
+      buildLevelBarrier(lvl);
+      clearSmoke();
+
+      [1, 2, 3].forEach(i => {
+        const btn = document.getElementById(`lvl-btn-${i}`);
+        if (i === lvl) {
+          btn.className = "lvl-tab px-2 py-0.5 rounded-md text-xs font-semibold bg-sky-500 text-white";
+        } else {
+          btn.className = "lvl-tab px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700";
+        }
+      });
+
+      const briefs = {
+        1: "<strong>Level 1 (Open LAF Hood):</strong> Verify parallel downward First Air over open vials. Keep HEPA velocity between 0.36–0.54 m/s and ΔP ≥ 12 Pa so Grade B smoke cannot enter under the front sash.",
+        2: "<strong>Level 2 (Active RABS):</strong> Inspect the right-side Mousehole exit chute and Glove Ports. High conveyor speeds can create a Venturi back-draft pulling Grade B air into Grade A unless ΔP ≥ 14 Pa.",
+        3: "<strong>Level 3 (Closed Isolator + RTP):</strong> Verify positive-pressure outward sweeping around the docked Rapid Transfer Port (RTP) gasket on the right wall with zero dead-leg stagnation."
+      };
+      document.getElementById("level-brief").innerHTML = briefs[lvl];
+    }
+
+    function toggleIntervention() {
+      initAudio();
+      state.interventionActive = !state.interventionActive;
+      operatorArmsGroup.visible = state.interventionActive;
+      const btn = document.getElementById("btn-intervention");
+      const status = document.getElementById("status-intervention");
+      if (state.interventionActive) {
+        btn.classList.add("border-amber-400", "bg-amber-950/60");
+        status.textContent = "ACTIVE (OBSTACLE)";
+        status.className = "text-[10px] uppercase text-amber-300 font-bold";
+        playTone(["A4", "C5"], "16n");
+      } else {
+        btn.classList.remove("border-amber-400", "bg-amber-950/60");
+        status.textContent = "OFF (Clear)";
+        status.className = "text-[10px] uppercase text-slate-400";
+      }
+    }
+
+    function toggleBoundarySmoke() {
+      state.gradeBChallenge = !state.gradeBChallenge;
+      const status = document.getElementById("status-gradeb");
+      status.textContent = state.gradeBChallenge ? "ACTIVE" : "PAUSED";
+      status.className = state.gradeBChallenge
+        ? "text-[10px] uppercase text-emerald-400"
+        : "text-[10px] uppercase text-slate-400";
+    }
+
+    function toggleContinuousSpray() {
+      state.continuousSpray = !state.continuousSpray;
+      const label = document.getElementById("spray-mode-label");
+      const btn = document.getElementById("hotbar-spray");
+      label.textContent = state.continuousSpray ? "Continuous Fog: ON" : "Hold Click to Spray";
+      btn.classList.toggle("bg-sky-600", state.continuousSpray);
+      btn.classList.toggle("bg-slate-800", !state.continuousSpray);
+    }
+
+    function clearSmoke() {
+      particles.forEach(p => {
+        p.active = false;
+        p.mesh.visible = false;
+      });
+    }
+
+    function resetOptimalPreset() {
+      initAudio();
+      playTone(["C5", "G5"], "16n");
+      state.hepaVelocity = 0.45;
+      state.diffPressure = 15;
+      sliderVelocity.value = "0.45";
+      sliderDp.value = "15";
+      document.getElementById("val-velocity").textContent = "0.45 m/s";
+      document.getElementById("val-dp").textContent = "15 Pa";
+      document.getElementById("hud-dp-val").textContent = "+15.0 Pa";
+    }
+
+    function setCameraPreset(preset) {
+      if (preset === "iso") state.camOrbit = { theta: 0.55, phi: 1.08, radius: 9.2, target: new THREE.Vector3(0, 1.4, 0) };
+      if (preset === "front") state.camOrbit = { theta: 0.0, phi: 1.32, radius: 8.6, target: new THREE.Vector3(0, 1.6, 0) };
+      if (preset === "side") state.camOrbit = { theta: 1.52, phi: 1.28, radius: 8.5, target: new THREE.Vector3(0, 1.5, 0) };
+      if (preset === "chute") state.camOrbit = { theta: 0.92, phi: 1.18, radius: 6.2, target: new THREE.Vector3(2.2, 1.4, 0) };
+      updateCameraPosition();
+    }
+
+    function toggleControls() {
+      const body = document.getElementById("controls-body");
+      const btn = document.getElementById("toggle-ctrl-btn");
+      const hidden = body.classList.toggle("hidden");
+      btn.textContent = hidden ? "Show" : "Hide";
+    }
+
+    // --- 10-SECOND PIC/S ANNEX 1 REGULATORY AUDIT ENGINE ---
+    function startAudit() {
+      if (state.auditRunning) return;
+      initAudio();
+      playTone(["E5", "G5", "B5"], "8n");
+      state.auditRunning = true;
+      state.auditTimeLeft = 10.0;
+      state.auditStats = { samples: 0, laminar: 0, eddy: 0, ingress: 0 };
+      state.continuousSpray = true;
+      document.getElementById("spray-mode-label").textContent = "Continuous Fog: ON";
+      document.getElementById("audit-banner").classList.remove("hidden");
+      document.getElementById("audit-btn-text").textContent = "Auditing...";
+    }
+
+    function finishAudit() {
+      state.auditRunning = false;
+      document.getElementById("audit-banner").classList.add("hidden");
+      document.getElementById("audit-btn-text").textContent = "Run 10s Audit";
+
+      const total = Math.max(1, state.auditStats.samples);
+      const laminarPct = Math.round((state.auditStats.laminar / total) * 100);
+      const ingressPct = Math.round((state.auditStats.ingress / total) * 100);
+      const eddyPct = Math.round((state.auditStats.eddy / total) * 100);
+
+      const passed = ingressPct <= 2 && laminarPct >= 82;
+      playTone(passed ? ["C5", "E5", "G5", "C6"] : ["C4", "Eb4", "Gb4"], "4n");
+
+      const titleEl = document.getElementById("report-title");
+      const badgeEl = document.getElementById("report-badge");
+      const bodyEl = document.getElementById("report-body");
+
+      titleEl.textContent = passed
+        ? `LEVEL ${state.level} SMOKE STUDY: PASSED`
+        : `LEVEL ${state.level} SMOKE STUDY: DEFICIENCY LOGGED`;
+
+      badgeEl.textContent = passed ? `PASS (${laminarPct}%)` : `FAIL (${laminarPct}%)`;
+      badgeEl.className = passed
+        ? "px-3 py-1 rounded-xl text-sm font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40"
+        : "px-3 py-1 rounded-xl text-sm font-extrabold bg-rose-500/20 text-rose-300 border border-rose-400/40";
+
+      const ac01 = state.hepaVelocity >= 0.36 && state.hepaVelocity <= 0.54;
+      const ac02 = eddyPct < 15;
+      const ac03 = ingressPct <= 2;
+
+      bodyEl.innerHTML = `
+        <div class="grid grid-cols-3 gap-2 text-center mb-3">
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <div class="text-[11px] text-slate-400">First Air Laminar</div>
+            <div class="roblox-font text-lg font-bold text-cyan-300">${laminarPct}%</div>
+          </div>
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <div class="text-[11px] text-slate-400">Eddy / Wake</div>
+            <div class="roblox-font text-lg font-bold text-amber-300">${eddyPct}%</div>
+          </div>
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <div class="text-[11px] text-slate-400">Grade B Ingress</div>
+            <div class="roblox-font text-lg font-bold text-rose-400">${ingressPct}%</div>
+          </div>
+        </div>
+        <div class="space-y-2 bg-slate-900/75 p-3.5 rounded-2xl border border-slate-700/80">
+          <div><strong>AC-01 (HEPA Velocity ${state.hepaVelocity.toFixed(2)} m/s):</strong> ${ac01 ? "✅ Within 0.36–0.54 m/s Annex 1 benchmark." : "⚠️ Outside 0.36–0.54 m/s target; causes either stall or deck rebound."}</div>
+          <div><strong>AC-02 (Eddies & Obstructions):</strong> ${ac02 ? "✅ Clean downward sweep across vials and stopper bowl." : "⚠️ Wake turbulence detected around work surface or gloved intervention."}</div>
+          <div><strong>AC-03 (Boundary Cascade ΔP ${state.diffPressure} Pa):</strong> ${ac03 ? "✅ Zero reverse ingress across Grade A/B interface." : "❌ Critical Deficiency: Reverse smoke ingress detected into Grade A zone!"}</div>
+        </div>
+      `;
+
+      document.getElementById("report-modal").classList.remove("hidden");
+    }
+
+    function closeReportModal() {
+      document.getElementById("report-modal").classList.add("hidden");
+    }
+
+    function nextLevelFromReport() {
+      closeReportModal();
+      setLevel(state.level < 3 ? state.level + 1 : 1);
+    }
+
+    // --- GITHUB EXPORT MODAL LOGIC ---
+    function openGitHubModal() {
+      const textarea = document.getElementById("github-code-textarea");
+      // Grab the full live HTML document source so it is 100% self-contained
+      textarea.value = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+      document.getElementById("github-modal").classList.remove("hidden");
+    }
+
+    function closeGitHubModal() {
+      document.getElementById("github-modal").classList.add("hidden");
+    }
+
+    function copySourceToClipboard() {
+      const textarea = document.getElementById("github-code-textarea");
+      textarea.select();
+      textarea.setSelectionRange(0, 999999);
+      try {
+        document.execCommand("copy");
+        const btn = document.getElementById("copy-code-btn");
+        btn.innerHTML = "<span>✅ Copied! Ready to paste into GitHub</span>";
+        setTimeout(() => {
+          btn.innerHTML = "<span>📋 Copy Full Code to Clipboard</span>";
+        }, 2600);
+      } catch (err) {
+        // Fallback selection remains active for Ctrl+C
+      }
+    }
+
+    // --- MAIN 60FPS PHYSICS & RENDER LOOP ---
+    const clock = new THREE.Clock();
+    let spawnAccumulator = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.getElapsedTime();
+
+      // 1. Keyboard Camera Orbit (WASD / Arrows)
+      const camSpeed = 1.6 * dt;
+      if (keysPressed["a"] || keysPressed["arrowleft"]) { state.camOrbit.theta -= camSpeed; updateCameraPosition(); }
+      if (keysPressed["d"] || keysPressed["arrowright"]) { state.camOrbit.theta += camSpeed; updateCameraPosition(); }
+      if (keysPressed["w"] || keysPressed["arrowup"]) { state.camOrbit.phi = Math.max(0.35, state.camOrbit.phi - camSpeed); updateCameraPosition(); }
+      if (keysPressed["s"] || keysPressed["arrowdown"]) { state.camOrbit.phi = Math.min(1.48, state.camOrbit.phi + camSpeed); updateCameraPosition(); }
+
+      // 2. Smoothly move Smoke Wand to cursor target
+      wandGroup.position.lerp(state.wandWorldPos, 0.22);
+
+      // 3. Animate Conveyor Vials (In-Operation motion)
+      const beltVel = (state.conveyorSpeed / 180) * 0.65;
+      vials.forEach(v => {
+        v.group.position.x += beltVel * dt;
+        // Apply rubber stopper once vial passes filling needles (x > -0.1)
+        v.stopper.visible = v.group.position.x > -0.1;
+        if (v.group.position.x > 3.35) {
+          v.group.position.x = -2.75;
+          v.stopper.visible = false;
+        }
+      });
+
+      // Subtle Operator Glove Intervention breathing/motion
+      if (state.interventionActive) {
+        operatorArmsGroup.position.y = Math.sin(elapsed * 2.4) * 0.035;
+        operatorArmsGroup.position.x = Math.cos(elapsed * 1.7) * 0.05;
+      }
+
+      // 4. Emit Smoke Particles from Wand & Grade B Boundary Challenge
+      spawnAccumulator += dt;
+      if (spawnAccumulator >= 0.018) {
+        spawnAccumulator = 0;
+
+        if (state.continuousSpray || state.isPointerDown) {
+          spawnSmokeParticle(wandGroup.position, new THREE.Vector3(0, -state.hepaVelocity * 1.4, 0), "wand");
+        }
+
+        if (state.gradeBChallenge) {
+          if (state.level === 1) {
+            // Grade B challenge outside front glass sash lip
+            spawnSmokeParticle(
+              new THREE.Vector3((Math.random() - 0.5) * 4.2, 1.38, 1.38),
+              new THREE.Vector3(0, 0.05, -0.15),
+              "gradeB"
+            );
+          } else if (state.level === 2) {
+            // Grade B challenge outside RABS Mousehole exit chute
+            spawnSmokeParticle(
+              new THREE.Vector3(3.05, 1.32 + (Math.random() - 0.5) * 0.22, (Math.random() - 0.5) * 0.4),
+              new THREE.Vector3(-0.12, 0.04, 0),
+              "gradeB"
+            );
+          } else if (state.level === 3) {
+            // Grade C/D challenge around RTP gasket ring
+            const angle = Math.random() * Math.PI * 2;
+            spawnSmokeParticle(
+              new THREE.Vector3(2.92, 1.75 + Math.cos(angle) * 0.36, Math.sin(angle) * 0.36),
+              new THREE.Vector3(-0.08, 0, 0),
+              "gradeB"
+            );
+          }
+        }
+      }
+
+      // 5. Update 3D Fluid Aerodynamics for Active Smoke Particles
+      let frameLaminar = 0;
+      let frameEddy = 0;
+      let frameIngress = 0;
+
+      const isOverVelocity = state.hepaVelocity > 0.58;
+      const isUnderVelocity = state.hepaVelocity < 0.32;
+      const venturiPull = state.level === 2 ? (state.conveyorSpeed / 300) * 5.5 : 0;
+      const effectiveCascade = state.diffPressure - venturiPull;
+
+      for (let i = 0; i < MAX_PARTICLES; i++) {
+        const p = particles[i];
+        if (!p.active) continue;
+
+        p.age += dt;
+        if (p.age >= p.maxAge) {
+          p.active = false;
+          p.mesh.visible = false;
+          continue;
+        }
+
+        const insideGradeA =
+          Math.abs(p.pos.x) < 2.78 &&
+          p.pos.z > -1.12 &&
+          p.pos.z < 1.14 &&
+          p.pos.y > 1.05 &&
+          p.pos.y < 3.15;
+
+        if (insideGradeA) {
+          // Overhead HEPA downward laminar velocity
+          const targetVy = -state.hepaVelocity * 2.35;
+          p.vel.y += (targetVy - p.vel.y) * 4.5 * dt;
+
+          // Outward positive pressure sweep toward low return grilles (-z) and boundaries
+          const outwardPush = Math.max(0.05, effectiveCascade * 0.032);
+          if (p.pos.z > 0.45) p.vel.z += outwardPush * 0.55 * dt;
+          else p.vel.z -= outwardPush * 0.35 * dt;
+
+          // Level 2 & 3 outward push through right mousehole / RTP flange
+          if (p.pos.x > 1.8) {
+            p.vel.x += outwardPush * 0.9 * dt;
+          }
+
+          // Failure Mode A: High velocity (> 0.58 m/s) rebounds off stainless steel deck into eddies
+          if (isOverVelocity && p.pos.y < 1.48) {
+            p.vel.y = Math.abs(p.vel.y) * 0.75 + Math.sin(elapsed * 9 + i) * 0.55;
+            p.vel.x += Math.cos(elapsed * 7 + i) * 0.85 * dt;
+            p.vel.z += Math.sin(elapsed * 8 + i) * 0.85 * dt;
+            p.status = "eddy";
+          }
+
+          // Failure Mode B: Under-velocity (< 0.32 m/s) causes stagnant drifting clouds
+          if (isUnderVelocity) {
+            p.vel.x += Math.sin(elapsed * 3 + i) * 0.35 * dt;
+            p.vel.z += Math.cos(elapsed * 2.5 + i) * 0.35 * dt;
+            if (p.age > 1.1) p.status = "eddy";
+          }
+
+          // Failure Mode C: Operator Glove Intervention wake turbulence
+          if (state.interventionActive) {
+            const distToArm = Math.hypot(p.pos.x - (-0.55), p.pos.y - 1.75, p.pos.z - 0.45);
+            if (distToArm < 0.62) {
+              p.vel.x += (p.pos.x > -0.55 ? 0.95 : -0.95) * dt * 4;
+              // If velocity isn't strong enough to sweep wake away, curl behind glove onto vials
+              if (state.hepaVelocity < 0.44 || state.hepaVelocity > 0.56) {
+                p.vel.y = 0.25 + Math.sin(elapsed * 10 + i) * 0.35;
+                p.vel.z -= 0.65 * dt;
+                p.status = "eddy";
+              }
+            }
+          }
+
+          // Work deck boundary deflection (y = 1.12)
+          if (p.pos.y <= 1.14) {
+            p.pos.y = 1.14;
+            p.vel.y = isOverVelocity ? 0.55 : 0.04;
+            p.vel.z += (p.pos.z >= 0 ? 0.65 : -0.65) * dt;
+          }
+
+          // Check if Grade B tracer smoke successfully breached into Grade A open vial zone
+          if (p.source === "gradeB" && Math.abs(p.pos.x) < 2.55 && p.pos.z < 0.98) {
+            p.status = "ingress";
+          }
+        } else {
+          // Outside Grade A (Grade B / C background room)
+          if (p.source === "gradeB") {
+            // If differential pressure cascade is too weak (< 10 Pa), Grade B air creeps inward!
+            if (effectiveCascade < 10) {
+              const creepSpeed = (10 - effectiveCascade) * 0.075;
+              if (state.level === 1) p.vel.z = -creepSpeed;
+              if (state.level === 2) p.vel.x = -creepSpeed * 1.25;
+              if (state.level === 3) p.vel.x = -creepSpeed * 1.1;
+            } else {
+              // Healthy positive cascade sweeps Grade B smoke cleanly outward/upward away from barrier
+              if (state.level === 1) p.vel.z = effectiveCascade * 0.045;
+              if (state.level === 2) p.vel.x = effectiveCascade * 0.055;
+              if (state.level === 3) p.vel.x = effectiveCascade * 0.05;
+              p.vel.y = 0.18;
+            }
+          } else {
+            // Wand smoke exiting Grade A disperses gently in Grade B exhaust
+            p.vel.y *= 0.94;
+            p.vel.x *= 0.96;
+          }
+        }
+
+        // Integrate position & update visual puff material/scale
+        p.pos.addScaledVector(p.vel, dt);
+        p.mesh.position.copy(p.pos);
+
+        const lifeRatio = p.age / p.maxAge;
+        p.mesh.scale.setScalar(0.75 + lifeRatio * 1.15);
+
+        if (p.status === "ingress") {
+          p.mesh.material = matIngress;
+          frameIngress++;
+        } else if (p.status === "eddy") {
+          p.mesh.material = matEddy;
+          frameEddy++;
+        } else if (p.source === "wand") {
+          p.mesh.material = matLaminar;
+          frameLaminar++;
+        }
+      }
+
+      // 6. Update Live HUD Compliance Telemetry
+      const totalWandSamples = Math.max(1, frameLaminar + frameEddy + frameIngress);
+      let liveScore = 100 - Math.round((frameEddy / totalWandSamples) * 35) - frameIngress * 4;
+      if (effectiveCascade < 10) liveScore -= Math.round((10 - effectiveCascade) * 3);
+      liveScore = Math.max(0, Math.min(100, liveScore));
+
+      const scoreEl = document.getElementById("hud-score");
+      const airEl = document.getElementById("hud-air-state");
+      scoreEl.textContent = `${liveScore}%`;
+
+      if (frameIngress > 2 || effectiveCascade < 9) {
+        airEl.textContent = "INGRESS ALERT";
+        airEl.className = "roblox-font text-sm sm:text-base font-bold text-rose-400";
+        scoreEl.className = "roblox-font text-sm sm:text-base font-bold text-rose-400";
+      } else if (frameEddy > totalWandSamples * 0.22 || isOverVelocity || isUnderVelocity) {
+        airEl.textContent = "TURBULENT EDDY";
+        airEl.className = "roblox-font text-sm sm:text-base font-bold text-amber-300";
+        scoreEl.className = "roblox-font text-sm sm:text-base font-bold text-amber-300";
+      } else {
+        airEl.textContent = "UNIDIRECTIONAL";
+        airEl.className = "roblox-font text-sm sm:text-base font-bold text-emerald-400";
+        scoreEl.className = "roblox-font text-sm sm:text-base font-bold text-emerald-400";
+      }
+
+      // 7. Audit Timer Tick
+      if (state.auditRunning) {
+        state.auditTimeLeft -= dt;
+        state.auditStats.samples += frameLaminar + frameEddy + frameIngress;
+        state.auditStats.laminar += frameLaminar;
+        state.auditStats.eddy += frameEddy;
+        state.auditStats.ingress += frameIngress;
+
+        document.getElementById("audit-timer").textContent = `${Math.max(0, state.auditTimeLeft).toFixed(1)}s`;
+        if (state.auditTimeLeft <= 0) {
+          finishAudit();
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // Handle Responsive Resize
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Start 3D Engine on Load
+    window.onload = () => {
+      animate();
+    };
+  </script>
 </body>
 </html>
