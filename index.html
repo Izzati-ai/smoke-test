@@ -1,213 +1,955 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>STERILE OPS | PIC/S Annex 1 Simulator</title>
-
+<title>STERILE OPS | PIC/S Annex 1 Cleanroom Simulator</title>
 <style>
-
-:root{--bg:#0d1117;--panel:#161b22;--border:#30363d;--text:#e6edf3;--muted:#8b949e;--crit:#f85149;--warn:#d29922;--ok:#3fb950;--acc:#58a6ff;--acc2:#a371f7;--gradeA:#ff6b6b;--gradeB:#ffa657;--gradeC:#4ecdc4;--gradeD:#74c0fc}
-
-*{box-sizing:border-box;margin:0;padding:0;font-family:'JetBrains Mono','Fira Code',monospace}
-
-body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;line-height:1.5}
-
-#app{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh}
-
-header{background:linear-gradient(90deg,#0d1117,#161b22);border-bottom:1px solid var(--border);padding:.75rem 1rem;position:sticky;top:0;z-index:100}
-
-.header-grid{display:grid;grid-template-columns:auto 1fr auto;gap:1rem;align-items:center;max-width:1400px;margin:0 auto}
-
-.logo{font-size:1.25rem;font-weight:700;color:var(--acc);letter-spacing:-.5px}
-
-.logo span{color:var(--crit)}
-
-.nav{display:flex;gap:.5rem;flex-wrap:wrap}
-
-.nav button{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:.4rem .75rem;border-radius:4px;cursor:pointer;font-size:.8rem;transition:all .15s}
-
-.nav button:hover{border-color:var(--acc);background:#1f2937}
-
-.nav button.active{background:var(--acc);border-color:var(--acc);color:#0d1117}
-
-.stats{display:flex;gap:1rem;font-size:.75rem;color:var(--muted);text-align:right}
-
-.stat{display:flex;flex-direction:column}
-
-.stat b{color:var(--text);font-size:.9rem}
-
-main{padding:1rem;max-width:1400px;margin:0 auto;width:100%}
-
-footer{border-top:1px solid var(--border);padding:.5rem;text-align:center;color:var(--muted);font-size:.7rem}
-
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1rem}
-
-.panel h3{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;font-size:.95rem;color:var(--acc)}
-
-.panel h3::before{content:'';width:4px;height:4px;background:var(--acc);border-radius:50%}
-
-.grid{display:grid;gap:1rem}
-
-.grid-2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
-
-.grid-3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-
-.grid-4{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-
-.btn{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:.5rem 1rem;border-radius:4px;cursor:pointer;font-size:.8rem;transition:all .15s;display:inline-flex;align-items:center;gap:.4rem}
-
-.btn:hover{border-color:var(--acc);background:#1f2937}
-
-.btn.primary{background:var(--acc);border-color:var(--acc);color:#0d1117;font-weight:600}
-
-.btn.primary:hover{background:#79c0ff}
-
-.btn.crit{background:var(--crit);border-color:var(--crit);color:#fff}
-
-.btn.warn{background:var(--warn);border-color:var(--warn);color:#0d1117}
-
-.btn:disabled{opacity:.4;cursor:not-allowed}
-
-input,select,textarea{background:#0d1117;border:1px solid var(--border);color:var(--text);padding:.5rem;border-radius:4px;font-family:inherit;font-size:.85rem;width:100%}
-
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--acc)}
-
-label{display:block;margin-bottom:.25rem;font-size:.75rem;color:var(--muted)}
-
-.form-row{display:grid;gap:.75rem;margin-bottom:.75rem}
-
-.form-row-2{grid-template-columns:1fr 1fr}
-
-.log{background:#0d1117;border:1px solid var(--border);border-radius:4px;padding:.75rem;max-height:200px;overflow-y:auto;font-size:.7rem;line-height:1.6;color:var(--muted);font-family:inherit}
-
-.log-entry{margin:.25rem 0;padding:.25rem;border-left:2px solid var(--border);padding-left:.5rem}
-
-.log-entry.crit{border-color:var(--crit);color:var(--crit)}
-
-.log-entry.warn{border-color:var(--warn);color:var(--warn)}
-
-.log-entry.ok{border-color:var(--ok);color:var(--ok)}
-
-.log-entry.info{border-color:var(--acc);color:var(--acc)}
-
-.progress{height:6px;background:#0d1117;border-radius:3px;overflow:hidden;margin:.5rem 0}
-
-.progress>div{height:100%;transition:width .3s}
-
-.badge{display:inline-block;padding:.15rem .4rem;border-radius:3px;font-size:.65rem;font-weight:600;text-transform:uppercase}
-
-.badge-crit{background:rgba(248,81,73,.2);color:var(--crit);border:1px solid var(--crit)}
-
-.badge-warn{background:rgba(210,153,34,.2);color:var(--warn);border:1px solid var(--warn)}
-
-.badge-ok{background:rgba(63,185,80,.2);color:var(--ok);border:1px solid var(--ok)}
-
-.badge-info{background:rgba(88,166,255,.2);color:var(--acc);border:1px solid var(--acc)}
-
-.table{width:100%;border-collapse:collapse;font-size:.75rem}
-
-.table th,.table td{padding:.4rem .5rem;text-align:left;border-bottom:1px solid var(--border)}
-
-.table th{color:var(--muted);font-weight:500;font-size:.7rem;text-transform:uppercase}
-
-.table tr:hover{background:#1f2937}
-
-.tabs{display:flex;gap:.25rem;margin-bottom:.75rem;border-bottom:1px solid var(--border);padding-bottom:.25rem}
-
-.tabs button{background:none;border:none;color:var(--muted);padding:.4rem .75rem;font-size:.75rem;cursor:pointer;border-radius:4px 4px 0 0;transition:all .15s}
-
-.tabs button:hover{color:var(--text);background:#1f2937}
-
-.tabs button.active{color:var(--acc);border-bottom:2px solid var(--acc)}
-
-.tab-content{display:none}
-
-.tab-content.active{display:block}
-
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity .2s}
-
-.modal.open{opacity:1;pointer-events:auto}
-
-.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:1.5rem;max-width:500px;width:90%;max-height:80vh;overflow:auto}
-
-.modal-box h2{margin-bottom:1rem;color:var(--acc)}
-
-.timer-display{font-size:3rem;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;font-family:'JetBrains Mono',monospace;color:var(--text)}
-
-.timer-display.warn{color:var(--warn)}
-
-.timer-display.crit{color:var(--crit);animation:pulse 1s infinite}
-
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-
-.hidden{display:none!important}
-
-.toast{position:fixed;bottom:1rem;right:1rem;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:.75rem 1rem;z-index:2000;transform:translateY(100px);opacity:0;transition:all .3s}
-
-.toast.show{transform:translateY(0);opacity:1}
-
-.toast.crit{border-left:4px solid var(--crit)}
-
-.toast.warn{border-left:4px solid var(--warn)}
-
-.toast.ok{border-left:4px solid var(--ok)}
-
-.toast.info{border-left:4px solid var(--acc)}
-
-@media(max-width:768px){.header-grid{grid-template-columns:1fr;text-align:center}.stats{justify-content:center}.timer-display{font-size:2rem}}
-
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel2: #1f2630;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --crit: #f85149;
+    --warn: #d29922;
+    --ok: #3fb950;
+    --acc: #58a6ff;
+    --purple: #a371f7;
+    --gradeA: #ff6b6b;
+    --gradeB: #ffa657;
+    --gradeC: #4ecdc4;
+    --gradeD: #74c0fc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  
+  /* Header */
+  header {
+    background: linear-gradient(90deg, #0d1117, #161b22);
+    border-bottom: 1px solid var(--border);
+    padding: 0.6rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 0.6rem; }
+  .logo-badge {
+    background: var(--acc); color: #0d1117; font-weight: 900; padding: 0.25rem 0.5rem;
+    border-radius: 6px; font-size: 0.9rem; letter-spacing: 0.5px; box-shadow: 0 2px 0 #1f6feb;
+  }
+  .brand h1 { font-size: 1.05rem; letter-spacing: 0.5px; }
+  .brand h1 span { color: var(--crit); }
+  .hud-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+  .hud-pill {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.3rem 0.65rem; display: flex; flex-direction: column; min-width: 90px;
+  }
+  .hud-pill span { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; font-weight: 700; }
+  .hud-pill strong { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+
+  /* Main Layout */
+  .workspace {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    overflow: hidden;
+  }
+  .viewport-wrap {
+    position: relative;
+    background: radial-gradient(circle at center, #161f2c 0%, #090c10 100%);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+
+  /* Floating Overlay Controls on Canvas */
+  .zone-banner {
+    position: absolute; top: 12px; left: 12px;
+    background: rgba(22, 27, 34, 0.9); border: 1px solid var(--border);
+    padding: 0.5rem 0.85rem; border-radius: 8px; backdrop-filter: blur(6px);
+    pointer-events: none;
+  }
+  .zone-banner .z-title { font-weight: 800; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem; }
+  .zone-banner .z-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  .controls-hint {
+    position: absolute; bottom: 12px; left: 12px;
+    background: rgba(13, 17, 23, 0.85); border: 1px solid var(--border);
+    padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.75rem; color: var(--muted);
+    pointer-events: none;
+  }
+  .kbd {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    padding: 1px 5px; border-radius: 4px; font-weight: 700; font-size: 0.7rem;
+  }
+
+  /* Action Prompt */
+  .interact-prompt {
+    position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%);
+    background: var(--acc); color: #0d1117; font-weight: 800;
+    padding: 0.5rem 1rem; border-radius: 99px; box-shadow: 0 4px 15px rgba(88, 166, 255, 0.4);
+    display: none; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem;
+    animation: bob 1s infinite ease-in-out;
+  }
+  @keyframes bob { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
+
+  /* Right Sidebar */
+  aside {
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 0.85rem;
+    gap: 0.85rem;
+  }
+  .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+  .card h3 {
+    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--acc); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* Pressure & Grade Gauges */
+  .cascade-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.78rem; padding: 0.35rem 0.5rem; border-radius: 5px;
+    background: var(--panel); margin-bottom: 0.35rem; border-left: 3px solid var(--ok);
+  }
+  .cascade-row.warn { border-left-color: var(--warn); }
+  .cascade-row.crit { border-left-color: var(--crit); background: rgba(248, 81, 73, 0.1); }
+
+  /* Buttons */
+  .btn {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    padding: 0.5rem 0.75rem; border-radius: 6px; font-weight: 700; font-size: 0.78rem;
+    cursor: pointer; transition: 0.15s; width: 100%; text-align: left;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--acc); background: #26303d; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.primary { background: var(--acc); color: #0d1117; border-color: var(--acc); justify-content: center; }
+  .btn.primary:hover { background: #79c0ff; }
+  .btn-grid { display: grid; gap: 0.4rem; }
+
+  /* Audit Log */
+  .log-box {
+    max-height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem;
+    font-size: 0.73rem;
+  }
+  .log-item {
+    padding: 0.35rem 0.5rem; border-radius: 4px; background: var(--panel);
+    border-left: 3px solid var(--acc); line-height: 1.35;
+  }
+  .log-item.ok { border-left-color: var(--ok); color: #aff5b4; }
+  .log-item.warn { border-left-color: var(--warn); color: #f8e3a1; }
+  .log-item.crit { border-left-color: var(--crit); color: #ffdcd7; }
+
+  /* Modals */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.82);
+    display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem;
+  }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    max-width: 720px; width: 100%; padding: 1.5rem; box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 1.3rem; margin-bottom: 0.35rem; color: var(--acc); }
+  .modal p.sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
+  .role-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+  .role-card {
+    background: var(--bg); border: 2px solid var(--border); border-radius: 8px; padding: 0.85rem;
+    cursor: pointer; transition: 0.15s;
+  }
+  .role-card:hover, .role-card.selected { border-color: var(--acc); background: #16202e; }
+  .role-card .icon { font-size: 1.6rem; margin-bottom: 0.3rem; }
+  .role-card h4 { font-size: 0.9rem; margin-bottom: 0.25rem; }
+  .role-card p { font-size: 0.74rem; color: var(--muted); line-height: 1.35; }
+  .tag {
+    display: inline-block; margin-top: 0.4rem; font-size: 0.68rem; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px; background: rgba(88,166,255,0.15); color: var(--acc);
+  }
+
+  /* Quiz / Deviation Options */
+  .choice-btn {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 0.75rem; border-radius: 8px; text-align: left; cursor: pointer;
+    margin-bottom: 0.5rem; width: 100%; font-size: 0.82rem; transition: 0.15s;
+  }
+  .choice-btn:hover { border-color: var(--acc); background: #1c2532; }
+
+  @media (max-width: 900px) {
+    .workspace { grid-template-columns: 1fr; grid-template-rows: 55% 45%; }
+    aside { border-left: none; border-top: 1px solid var(--border); }
+  }
 </style>
-
 </head>
-
 <body>
 
-<div id="app">
-
 <header>
-
-<div class="header-grid">
-
-<div class="logo">STERILE <span>OPS</span></div>
-
-<div class="nav" id="nav"></div>
-
-<div class="stats" id="stats"></div>
-
-</div>
-
+  <div class="brand">
+    <div class="logo-badge">ANNEX 1</div>
+    <h1>STERILE <span>OPS</span> // 3D CLEANROOM SIMULATOR</h1>
+  </div>
+  <div class="hud-bar">
+    <div class="hud-pill"><span>Batch Vials</span><strong id="hudVials" style="color:var(--ok)">0 / 500</strong></div>
+    <div class="hud-pill"><span>CCS Compliance</span><strong id="hudScore" style="color:var(--acc)">100%</strong></div>
+    <div class="hud-pill"><span>Grade A Particles</span><strong id="hudParticles">0 / m³</strong></div>
+    <div class="hud-pill"><span>Budget</span><strong id="hudCash">$12,500</strong></div>
+    <div class="hud-pill"><span>Shift Timer</span><strong id="hudTime">08:00</strong></div>
+  </div>
 </header>
 
-<main id="main"></main>
+<div class="workspace">
+  <div class="viewport-wrap">
+    <canvas id="gameCanvas"></canvas>
+    <div class="zone-banner">
+      <div class="z-title" id="zoneTitle">🟦 GRADE D — Component Prep & Autoclave</div>
+      <div class="z-sub" id="zoneReq">Annex 1 Limit: ≥15 Pa vs Unclassified | Gowning: Hairnet, Beard Cover, Lab Coat</div>
+    </div>
+    <div class="interact-prompt" id="interactPrompt" onclick="triggerInteraction()">
+      ⚡ Press [E] or Click to Interact
+    </div>
+    <div class="controls-hint">
+      Move: <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> / <span class="kbd">Arrows</span> or <b>Click Floor</b> • Action: <span class="kbd">E</span> / <span class="kbd">Space</span>
+    </div>
+  </div>
 
-<footer>PIC/S Annex 1:2022 • EU GMP Vol 4 • FDA cGMP • <span id="version">v1.0.0</span> • <button class="btn" onclick="exportSave()">💾 Export Save</button> <input type="file" id="importFile" accept=".json" style="display:none" onchange="importSave(event)">
+  <aside>
+    <div class="card">
+      <h3>Differential Pressure (ΔP) <span id="hvacStatus" style="color:var(--ok)">● NORMAL</span></h3>
+      <div id="cascadeList"></div>
+    </div>
 
-</footer>
+    <div class="card">
+      <h3>Cleanroom Quick Actions</h3>
+      <div class="btn-grid">
+        <button class="btn" onclick="runEMSample()"><span>🔬 Viable EM & Particle Scan</span><span>-$150</span></button>
+        <button class="btn" onclick="performPUPSIT()"><span>🧪 Sterilizing Filter PUPSIT</span><span>-$250</span></button>
+        <button class="btn" onclick="gloveLeakTest()"><span>🧤 RABS/Isolator Glove Test</span><span>-$200</span></button>
+        <button class="btn" onclick="sanitizeLine()"><span>🧴 Sporicidal VHP / IPA Wipe</span><span>-$180</span></button>
+        <button class="btn" id="auditBtn" onclick="triggerAuditModal()"><span>📋 PIC/S Inspector Walkdown</span><span>READY</span></button>
+      </div>
+    </div>
 
+    <div class="card" style="flex:1; display:flex; flex-direction:column;">
+      <h3>21 CFR Part 11 Audit Trail</h3>
+      <div class="log-box" id="auditLog"></div>
+    </div>
+  </aside>
 </div>
 
-<div class="modal" id="modal"></div>
+<!-- Start / Role Selection Modal -->
+<div class="modal-backdrop" id="startModal">
+  <div class="modal">
+    <h2>🏭 STERILE OPS: PIC/S Annex 1:2022 Cleanroom Simulator</h2>
+    <p class="sub">Walk your blocky GMP specialist through Grade D → C → B → Grade A RABS/Isolator zones. Maintain positive pressure cascades, protect First Air, pass PUPSIT & Environmental Monitoring, and release 500 sterile vials without a Critical Observation!</p>
+    <div class="role-grid" id="roleGrid"></div>
+    <button class="btn primary" onclick="startGame()">▶ Enter Cleanroom Airlock & Start Shift</button>
+  </div>
+</div>
 
-<div id="toastContainer"></div>
+<!-- Deviation / PIC/S Audit Modal -->
+<div class="modal-backdrop" id="eventModal" style="display:none;">
+  <div class="modal">
+    <h2 id="evTitle">⚠️ GMP Deviation Detected</h2>
+    <p class="sub" id="evDesc"></p>
+    <div id="evChoices"></div>
+  </div>
+</div>
 
 <script>
+// ==================== GAME CONFIGURATION & ANNEX 1 DATA ====================
+const ROLES = [
+  { id: 'operator', icon: '🧪', name: 'Aseptic Operator', desc: 'Master of RABS/Isolator glove interventions and First Air protection.', perk: '+35% Filling Speed & Safer Interventions', fillBonus: 1.35, emBonus: 1, hvacBonus: 1, auditBonus: 0 },
+  { id: 'micro', icon: '🔬', name: 'QC Microbiologist', desc: 'Detects viable excursions early and trends Grade A/B settle plates.', perk: '2x EM Accuracy & -40% Contamination Growth', fillBonus: 1, emBonus: 2, hvacBonus: 1, auditBonus: 5 },
+  { id: 'engineer', icon: '🛠️', name: 'Facilities Engineer', desc: 'Maintains HEPA H14 integrity and ΔP airlock cascades.', perk: '2x Pressure Cascade Stability', fillBonus: 1, emBonus: 1, hvacBonus: 2, auditBonus: 0 },
+  { id: 'qa', icon: '📋', name: 'QA Release Specialist', desc: 'Commands Contamination Control Strategy (CCS) & PIC/S audits.', perk: '+15% Audit Score & Higher Batch Revenue', fillBonus: 1.1, emBonus: 1.2, hvacBonus: 1, auditBonus: 15 }
+];
 
-// ============= GAME DATA =============
+// Cleanroom Isometric Map Layout (16 x 12 grid)
+// Zones: D (0..3), C (4..7), B (8..11), A (12..15)
+const COLS = 16;
+const ROWS = 12;
 
-const CLASSES = {
+const ZONES = {
+  D: { name: 'GRADE D — Component Prep & Autoclave', color: '#3b6ea5', top: '#4dabf7', limit: '≥15 Pa vs CNC | Max 3,520,000 particles/m³ (≥0.5µm)', targetDp: 15 },
+  C: { name: 'GRADE C — Bulk Solution Compounding', color: '#2b8a7e', top: '#3bc9db', limit: '≥30 Pa | Max 352,000 particles/m³ | 0.22µm Filtration', targetDp: 30 },
+  B: { name: 'GRADE B — Aseptic Background & Gowning', color: '#b86b28', top: '#ffa94d', limit: '≥45 Pa | Max 3,520 particles/m³ | Full Sterile Coveralls', targetDp: 45 },
+  A: { name: 'GRADE A — RABS / Isolator Filling Zone', color: '#a83232', top: '#ff6b6b', limit: '≥60 Pa | Unidirectional Airflow 0.45 m/s | ISO 4.8 (<3,520)', targetDp: 60 }
+};
 
-operator:{name:"Aseptic Operator",icon:"🧪",desc:"Core interventions, line setup, media fills",perks:["Glove Integrity Sense","Rapid Aseptic Transfer"],stats:{dex:2,int:0,sys:0,com:0,tech:0},diff:2},
+// Interactive Stations in the 3D Cleanroom
+const STATIONS = [
+  { id: 'autoclave', gx: 1.5, gy: 2.5, zone: 'D', label: 'Steam Autoclave', icon: '♨️', color: '#74c0fc', desc: 'Sterilize stoppers & glassware (121°C, 20 min)' },
+  { id: 'compounding', gx: 5.5, gy: 3.0, zone: 'C', label: 'Compounding Vessel & PUPSIT', icon: '⚗️', color: '#4ecdc4', desc: 'Mix sterile API & run 0.22µm filter integrity' },
+  { id: 'airlock', gx: 7.5, gy: 6.0, zone: 'B', label: 'Grade B PAL / MAL Airlock', icon: '🚪', color: '#ffa657', desc: 'Verify differential pressure cascade & gowning' },
+  { id: 'em_station', gx: 9.5, gy: 2.5, zone: 'B', label: 'Viable EM & Particle Cart', icon: '📡', color: '#ffd43b', desc: 'Sample active air & settle plates in Grade B/A' },
+  { id: 'isolator', gx: 13.5, gy: 5.5, zone: 'A', label: 'Grade A RABS / Isolator Line', icon: '💉', color: '#ff6b6b', desc: 'Aseptic vial filling, stoppering & glove ports' },
+  { id: 'qa_desk', gx: 13.5, gy: 9.5, zone: 'A', label: 'Batch Release & Audit Terminal', icon: '📋', color: '#a371f7', desc: 'Review 21 CFR Part 11 logs & release batch' }
+];
 
-micro:{name:"QC Microbiologist",icon:"🔬",desc:"EM trending, sterility testing, investigations",perks:["Rapid Micro ID","Trend Vision"],stats:{dex:0,int:2,sys:0,com:0,tech:0},diff:3},
+const AUDIT_SCENARIOS = [
+  {
+    title: 'PIC/S Inspector Observation: Grade A Airflow Visualization',
+    desc: 'During dynamic filling in the Grade A RABS, an operator reaches directly over an open uncapped vial to clear a fallen stopper with forceps. What is the Annex 1:2022 ruling?',
+    choices: [
+      { text: 'CRITICAL DEFICIENCY: Violates First Air protection over open sterile product. Reject affected vials, perform line clearance & re-sanitize.', ok: true, msg: 'Spot-on! Annex 1 §4.15 strictly prohibits obstructing unidirectional First Air above open containers.' },
+      { text: 'MINOR OBSERVATION: Acceptable if the operator sprayed 70% IPA on their gloves 10 minutes earlier.', ok: false, msg: 'Incorrect! Reaching over open vials directly compromises sterility assurance regardless of glove sanitization.' },
+      { text: 'NO FINDING: Forceps are sterile stainless steel so First Air interruption is permitted.', ok: false, msg: 'Incorrect! Eddy currents from forceps/gloves sweep particles into open vials.' }
+    ]
+  },
+  {
+    title: 'PIC/S Inspector Observation: PUPSIT Requirement (Annex 1 §8.87)',
+    desc: 'Your sterile bulk solution passes through a single 0.22 µm sterilizing-grade filter before entering the Grade A isolator. The inspector asks for Pre-Use Post-Sterilization Integrity Testing (PUPSIT) records.',
+    choices: [
+      { text: 'Present automated Bubble Point / Diffusive Flow test performed AFTER steam sterilization and BEFORE batch filtration.', ok: true, msg: 'Compliant! PUPSIT detects filter flaws masked by product wetting or damaged during SIP/autoclaving.' },
+      { text: 'Explain that only post-use integrity testing is needed because the filter certificate from the vendor is on file.', ok: false, msg: 'Non-compliant! Annex 1 requires PUPSIT unless a formal, validated risk assessment justifies alternative controls.' },
+      { text: 'Perform PUPSIT after the batch is filled so the filter stays completely dry during production.', ok: false, msg: 'Incorrect! PUPSIT must occur pre-use (after sterilization, prior to filtration).' }
+    ]
+  },
+  {
+    title: 'PIC/S Inspector Observation: Differential Pressure Drop',
+    desc: 'The Grade B to Grade C airlock differential pressure drops from 15 Pa to 4 Pa for 12 minutes while filling is active. What immediate action does Annex 1 require?',
+    choices: [
+      { text: 'Pause aseptic filling immediately, segregate vials produced during the excursion, and investigate HVAC/door interlocks.', ok: true, msg: 'Correct! Loss of pressure cascade risks ingress of lower-grade air into the aseptic core.' },
+      { text: 'Continue filling and double the settle plate exposure time at the end of the shift.', ok: false, msg: 'Major/Critical GMP violation! You cannot continue aseptic filling without cascading containment.' },
+      { text: 'Turn off the Grade A laminar flow hood to equalize room pressure.', ok: false, msg: 'Catastrophic error! Shutting off Grade A LAF destroys ISO 4.8 protection.' }
+    ]
+  }
+];
 
-engineer:{name:"Facilities Engineer",icon:"🛠",desc:"HVAC, utilities, qualification, deviations",perks:["Pressure Cascade Vision","Root Cause Radar"],stats:{dex:0,int:0,sys:2,com:0,tech:0},diff:3},
+// ==================== GAME STATE ====================
+let state = {
+  started: false,
+  role: ROLES[0],
+  vials: 0,
+  targetVials: 500,
+  score: 100,
+  cash: 12500,
+  timeSec: 480, // 8-minute shift
+  particlesA: 0,
+  dp: { D: 16, C: 32, B: 47, A: 63 },
+  preparedComponents: 2,
+  filteredBulk: 2,
+  glovesVerified: true,
+  player: { x: 1.5, y: 5.5, tx: 1.5, ty: 5.5, dir: 0, bob: 0 },
+  nearbyStation: null,
+  hazards: [], // { id, gx, gy, type, label }
+  particlesFx: [],
+  auditIndex: 0,
+  gameOver: false
+};
 
-qa:{name:"QA Release Person",icon:"📋",desc:"Batch review, CAPA, regulatory interface",perks:["Audit Trail Mastery","Regulatory Sixth Sense"],stats:{dex:0,int:0,sys:0,com:2,tech:0},diff:4},
+// ==================== INIT ROLE UI ====================
+const roleGrid = document.getElementById('roleGrid');
+ROLES.forEach((r, idx) => {
+  const div = document.createElement('div');
+  div.className = 'role-card' + (idx === 0 ? ' selected' : '');
+  div.innerHTML = `<div class="icon">${r.icon}</div><h4>${r.name}</h4><p>${r.desc}</p><span class="tag">${r.perk}</span>`;
+  div.onclick = () => {
+    document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+    div.classList.add('selected');
+    state.role = r;
+  };
+  roleGrid.appendChild(div);
+});
 
-auto:{name:"Automation Specialist",icon:"🤖",desc:"RABS/Isolator robotics, recipe mgmt, 21 CFR Part 11",perks:["Recipe Drift Detection","Auto-Sequence Optimizer"],stats:{dex:0,int:0
+function startGame() {
+  document.getElementById('startModal').style.display = 'none';
+  state.started = true;
+  state.score = Math.min(100, 95 + state.role.auditBonus);
+  addLog(`Shift started as ${state.role.name}. Contamination Control Strategy (CCS) active.`, 'ok');
+  addLog(`Walk to Grade D Autoclave -> Grade C Compounding -> Grade A Isolator to fill 500 vials!`, 'info');
+  spawnHazard();
+}
+
+function addLog(msg, type = 'info') {
+  const box = document.getElementById('auditLog');
+  const now = new Date();
+  const ts = now.toTimeString().split(' ')[0];
+  const div = document.createElement('div');
+  div.className = `log-item ${type}`;
+  div.innerHTML = `<b>[${ts}]</b> ${msg}`;
+  box.prepend(div);
+  if (box.children.length > 40) box.lastChild.remove();
+}
+
+// ==================== CLEANROOM OPERATIONS ====================
+function getZoneAt(gx) {
+  if (gx < 4) return 'D';
+  if (gx < 8) return 'C';
+  if (gx < 12) return 'B';
+  return 'A';
+}
+
+function spawnHazard() {
+  if (state.hazards.length >= 3) return;
+  const types = [
+    { type: 'spill', label: '💧 WFI / Buffer Condensate', penalty: 3 },
+    { type: 'vial', label: '🧪 Fallen Vial (Use Forceps!)', penalty: 5 },
+    { type: 'particle', label: '🌫️ HEPA Filter Seal Drift', penalty: 4 }
+  ];
+  const pick = types[Math.floor(Math.random() * types.length)];
+  const gx = 2 + Math.floor(Math.random() * 13);
+  const gy = 1 + Math.floor(Math.random() * 10);
+  state.hazards.push({ id: Date.now() + Math.random(), gx, gy, ...pick });
+  addLog(`ALERT: ${pick.label} detected in Grade ${getZoneAt(gx)}! Walk over & press [E] to remediate.`, 'warn');
+}
+
+function triggerInteraction() {
+  if (!state.started || state.gameOver) return;
+
+  // 1. Check nearby hazard remediation first
+  const hzIdx = state.hazards.findIndex(h => Math.hypot(h.gx - state.player.x, h.gy - state.player.y) < 1.5);
+  if (hzIdx !== -1) {
+    const hz = state.hazards[hzIdx];
+    state.hazards.splice(hzIdx, 1);
+    state.score = Math.min(100, state.score + 3);
+    state.particlesA = Math.max(0, state.particlesA - 12);
+    spawnBurst(hz.gx, hz.gy, '#3fb950');
+    addLog(`Remediated ${hz.label} per SOP-CLEAN-04. +3% CCS Score.`, 'ok');
+    return;
+  }
+
+  // 2. Check station interaction
+  const st = state.nearbyStation;
+  if (!st) return;
+
+  if (st.id === 'autoclave') {
+    state.preparedComponents += 2;
+    state.cash -= 100;
+    spawnBurst(st.gx, st.gy, '#74c0fc');
+    addLog(`Autoclave Cycle #${state.preparedComponents / 2} complete: Sterile stoppers & vials ready (+2 batches).`, 'ok');
+  } else if (st.id === 'compounding') {
+    if (state.preparedComponents <= 0) {
+      addLog(`No sterilized components! Visit Grade D Autoclave first.`, 'warn');
+      return;
+    }
+    state.preparedComponents--;
+    state.filteredBulk += 2;
+    spawnBurst(st.gx, st.gy, '#4ecdc4');
+    addLog(`Bulk compounded & sterile-filtered (0.22µm). Ready for Grade A filling.`, 'ok');
+  } else if (st.id === 'airlock') {
+    state.dp = { D: 16, C: 32, B: 48, A: 64 };
+    spawnBurst(st.gx, st.gy, '#ffa657');
+    addLog(`Airlock interlocks & HVAC VFD balanced. All ΔP cascades restored to ≥15 Pa steps.`, 'ok');
+  } else if (st.id === 'em_station') {
+    runEMSample();
+  } else if (st.id === 'isolator') {
+    if (state.filteredBulk <= 0) {
+      addLog(`Isolator surge tank empty! Compound & filter bulk in Grade C first.`, 'warn');
+      return;
+    }
+    if (state.dp.A < 52) {
+      state.score -= 8;
+      addLog(`DEVIATION: Attempted Grade A filling while ΔP < 52 Pa! -8% CCS Score.`, 'crit');
+      return;
+    }
+    if (!state.glovesVerified) {
+      state.score -= 6;
+      addLog(`DEVIATION: RABS/Isolator glove integrity check overdue! Run Glove Test first.`, 'crit');
+      return;
+    }
+    state.filteredBulk--;
+    const filled = Math.round(50 * state.role.fillBonus);
+    state.vials = Math.min(state.targetVials, state.vials + filled);
+    state.cash += filled * 12;
+    state.glovesVerified = Math.random() > 0.35; // Periodic glove re-check needed
+    spawnBurst(st.gx, st.gy, '#ff6b6b');
+    addLog(`Aseptic Fill: +${filled} sterile vials sealed under ISO 4.8 First Air (+$${filled * 12}).`, 'ok');
+    if (state.vials >= state.targetVials) {
+      endGame(true, 'Batch Target Achieved! All 500 sterile vials filled and passed PIC/S Annex 1 release criteria.');
+    }
+  } else if (st.id === 'qa_desk') {
+    triggerAuditModal();
+  }
+}
+
+function runEMSample() {
+  if (state.cash < 150) return addLog('Insufficient budget for EM sampling.', 'warn');
+  state.cash -= 150;
+  const reduction = 18 * state.role.emBonus;
+  state.particlesA = Math.max(0, state.particlesA - reduction);
+  state.score = Math.min(100, state.score + 2);
+  spawnBurst(state.player.x, state.player.y, '#ffd43b');
+  addLog(`Viable settle plates & active air sampler logged (0 CFU in Grade A). Particles reduced.`, 'ok');
+}
+
+function performPUPSIT() {
+  if (state.cash < 250) return addLog('Insufficient budget for PUPSIT.', 'warn');
+  state.cash -= 250;
+  state.score = Math.min(100, state.score + 4);
+  addLog(`PUPSIT Bubble Point passed (3,850 mbar ≥ 3,450 mbar spec). Annex 1 §8.87 compliant.`, 'ok');
+}
+
+function gloveLeakTest() {
+  if (state.cash < 200) return addLog('Insufficient budget for Glove Leak Test.', 'warn');
+  state.cash -= 200;
+  state.glovesVerified = true;
+  state.score = Math.min(100, state.score + 2);
+  addLog(`Automated pressure-decay RABS/Isolator glove test PASSED (0 micro-pinholes).`, 'ok');
+}
+
+function sanitizeLine() {
+  if (state.cash < 180) return addLog('Insufficient budget for VHP/IPA sanitization.', 'warn');
+  state.cash -= 180;
+  state.particlesA = 0;
+  state.hazards = [];
+  addLog(`Sporicidal VHP cycle & 70% sterile IPA wipe-down completed across cleanroom.`, 'ok');
+}
+
+function triggerAuditModal() {
+  const sc = AUDIT_SCENARIOS[state.auditIndex % AUDIT_SCENARIOS.length];
+  state.auditIndex++;
+  const modal = document.getElementById('eventModal');
+  document.getElementById('evTitle').textContent = sc.title;
+  document.getElementById('evDesc').textContent = sc.desc;
+  const box = document.getElementById('evChoices');
+  box.innerHTML = '';
+  sc.choices.forEach(ch => {
+    const b = document.createElement('button');
+    b.className = 'choice-btn';
+    b.textContent = ch.text;
+    b.onclick = () => {
+      modal.style.display = 'none';
+      if (ch.ok) {
+        state.score = Math.min(100, state.score + 6);
+        state.cash += 1200;
+        addLog(`AUDIT PASSED: ${ch.msg} (+$1,200 QA Bonus)`, 'ok');
+      } else {
+        state.score = Math.max(0, state.score - 15);
+        addLog(`AUDIT OBSERVATION: ${ch.msg} (-15% CCS Score)`, 'crit');
+      }
+    };
+    box.appendChild(b);
+  });
+  modal.style.display = 'flex';
+}
+
+function endGame(win, reason) {
+  state.gameOver = true;
+  const modal = document.getElementById('eventModal');
+  document.getElementById('evTitle').textContent = win ? '🏆 BATCH RELEASED — ANNEX 1 COMPLIANT!' : '🚨 BATCH REJECTED — GMP CRITICAL FAILURE';
+  document.getElementById('evDesc').textContent = `${reason} | Final Vials: ${state.vials}/${state.targetVials} | CCS Compliance Score: ${Math.round(state.score)}% | Cash: $${state.cash.toLocaleString()}`;
+  const box = document.getElementById('evChoices');
+  box.innerHTML = `<button class="btn primary" onclick="location.reload()">↻ Start New Sterile Shift</button>`;
+  modal.style.display = 'flex';
+}
+
+// ==================== INPUT HANDLING ====================
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key.toLowerCase() === 'e' || e.key === ' ') {
+    triggerInteraction();
+  }
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Isometric Projection Helpers
+function getIsoMetrics() {
+  const w = canvas.parentElement.clientWidth;
+  const h = canvas.parentElement.clientHeight;
+  const tileW = Math.min(w / 18, h / 11, 56);
+  const tileH = tileW * 0.5;
+  const originX = w * 0.5 - ((COLS - ROWS) * tileW) / 4;
+  const originY = h * 0.23;
+  return { w, h, tileW, tileH, originX, originY };
+}
+
+function gridToScreen(gx, gy) {
+  const { tileW, tileH, originX, originY } = getIsoMetrics();
+  return {
+    x: originX + (gx - gy) * (tileW / 2),
+    y: originY + (gx + gy) * (tileH / 2)
+  };
+}
+
+function screenToGrid(sx, sy) {
+  const { tileW, tileH, originX, originY } = getIsoMetrics();
+  const dx = sx - originX;
+  const dy = sy - originY;
+  const gx = (dx / (tileW / 2) + dy / (tileH / 2)) / 2;
+  const gy = (dy / (tileH / 2) - dx / (tileW / 2)) / 2;
+  return { gx, gy };
+}
+
+canvas.addEventListener('click', e => {
+  if (!state.started || state.gameOver) return;
+  const rect = canvas.getBoundingClientRect();
+  const { gx, gy } = screenToGrid(e.clientX - rect.left, e.clientY - rect.top);
+  if (gx >= 0 && gx < COLS && gy >= 0 && gy < ROWS) {
+    state.player.tx = Math.max(0.4, Math.min(COLS - 0.4, gx));
+    state.player.ty = Math.max(0.4, Math.min(ROWS - 0.4, gy));
+  }
+});
+
+function spawnBurst(gx, gy, color) {
+  for (let i = 0; i < 14; i++) {
+    state.particlesFx.push({
+      gx, gy,
+      vx: (Math.random() - 0.5) * 0.12,
+      vy: (Math.random() - 0.5) * 0.12,
+      vz: 1.5 + Math.random() * 2,
+      z: 10,
+      life: 1,
+      color
+    });
+  }
+}
+
+// ==================== SIMULATION LOOP ====================
+let lastTick = performance.now();
+let secondAccum = 0;
+
+function update(dt) {
+  if (!state.started || state.gameOver) return;
+
+  // Keyboard movement overrides click target
+  let mx = 0, my = 0;
+  if (keys['w'] || keys['arrowup']) { mx -= 1; my -= 1; }
+  if (keys['s'] || keys['arrowdown']) { mx += 1; my += 1; }
+  if (keys['a'] || keys['arrowleft']) { mx -= 1; my += 1; }
+  if (keys['d'] || keys['arrowright']) { mx += 1; my -= 1; }
+
+  const speed = 4.2 * dt;
+  if (mx !== 0 || my !== 0) {
+    const len = Math.hypot(mx, my);
+    state.player.x = Math.max(0.4, Math.min(COLS - 0.4, state.player.x + (mx / len) * speed));
+    state.player.y = Math.max(0.4, Math.min(ROWS - 0.4, state.player.y + (my / len) * speed));
+    state.player.tx = state.player.x;
+    state.player.ty = state.player.y;
+    state.player.bob += dt * 14;
+  } else {
+    const dx = state.player.tx - state.player.x;
+    const dy = state.player.ty - state.player.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0.08) {
+      state.player.x += (dx / dist) * Math.min(dist, speed);
+      state.player.y += (dy / dist) * Math.min(dist, speed);
+      state.player.bob += dt * 14;
+    } else {
+      state.player.bob = 0;
+    }
+  }
+
+  // Zone Detection & Banner Update
+  const zKey = getZoneAt(state.player.x);
+  const zInfo = ZONES[zKey];
+  document.getElementById('zoneTitle').innerHTML = `<span style="color:${zInfo.top}">■</span> ${zInfo.name}`;
+  document.getElementById('zoneReq').textContent = zInfo.limit;
+
+  // Proximity Detection
+  let closest = null;
+  let minDist = 1.65;
+  STATIONS.forEach(st => {
+    const d = Math.hypot(st.gx - state.player.x, st.gy - state.player.y);
+    if (d < minDist) { minDist = d; closest = st; }
+  });
+  state.nearbyStation = closest;
+
+  const nearHazard = state.hazards.find(h => Math.hypot(h.gx - state.player.x, h.gy - state.player.y) < 1.5);
+  const prompt = document.getElementById('interactPrompt');
+  if (nearHazard) {
+    prompt.style.display = 'flex';
+    prompt.textContent = `🧹 Press [E] to Remediate: ${nearHazard.label}`;
+  } else if (closest) {
+    prompt.style.display = 'flex';
+    prompt.textContent = `${closest.icon} Press [E] — ${closest.label}`;
+  } else {
+    prompt.style.display = 'none';
+  }
+
+  // FX Particles
+  state.particlesFx.forEach(p => {
+    p.gx += p.vx;
+    p.gy += p.vy;
+    p.z += p.vz;
+    p.vz -= 0.12;
+    p.life -= dt * 1.6;
+  });
+  state.particlesFx = state.particlesFx.filter(p => p.life > 0);
+
+  // 1-Second GMP Physics Tick
+  secondAccum += dt;
+  if (secondAccum >= 1) {
+    secondAccum -= 1;
+    state.timeSec--;
+
+    // Pressure drift
+    const drift = 0.35 / state.role.hvacBonus;
+    state.dp.A = Math.max(35, state.dp.A - (Math.random() * drift));
+    state.dp.B = Math.max(25, state.dp.B - (Math.random() * drift * 0.8));
+    state.dp.C = Math.max(15, state.dp.C - (Math.random() * drift * 0.6));
+
+    // Particle buildup from hazards or low ΔP
+    if (state.hazards.length > 0 || state.dp.A < 54) {
+      state.particlesA += Math.round((state.hazards.length * 4 + (state.dp.A < 54 ? 6 : 0)) / state.role.emBonus);
+    }
+    if (state.particlesA > 35) {
+      state.score = Math.max(0, state.score - 1.5);
+    }
+
+    // Random GMP Event Spawner
+    if (Math.random() < 0.12) spawnHazard();
+    if (state.timeSec === 320 || state.timeSec === 160) triggerAuditModal();
+
+    updateHUD();
+
+    if (state.score <= 40) {
+      endGame(false, 'CCS Compliance Score fell below 40% due to unresolved contamination excursions.');
+    } else if (state.timeSec <= 0) {
+      endGame(state.vials >= state.targetVials, state.vials >= state.targetVials ? 'Shift completed!' : 'Shift ended before filling all 500 sterile vials.');
+    }
+  }
+}
+
+function updateHUD() {
+  document.getElementById('hudVials').textContent = `${state.vials} / ${state.targetVials}`;
+  const scoreEl = document.getElementById('hudScore');
+  scoreEl.textContent = `${Math.round(state.score)}%`;
+  scoreEl.style.color = state.score > 75 ? 'var(--ok)' : state.score > 50 ? 'var(--warn)' : 'var(--crit)';
+
+  const pEl = document.getElementById('hudParticles');
+  pEl.textContent = `${state.particlesA} / m³`;
+  pEl.style.color = state.particlesA > 35 ? 'var(--crit)' : 'var(--text)';
+
+  document.getElementById('hudCash').textContent = `$${state.cash.toLocaleString()}`;
+  const mins = String(Math.floor(state.timeSec / 60)).padStart(2, '0');
+  const secs = String(state.timeSec % 60).padStart(2, '0');
+  document.getElementById('hudTime').textContent = `${mins}:${secs}`;
+
+  // Update Cascade Panel
+  const cascadeList = document.getElementById('cascadeList');
+  const grades = [
+    { key: 'A', label: 'Grade A (Isolator)', req: 55 },
+    { key: 'B', label: 'Grade B (Background)', req: 40 },
+    { key: 'C', label: 'Grade C (Compounding)', req: 25 },
+    { key: 'D', label: 'Grade D (Prep)', req: 12 }
+  ];
+  cascadeList.innerHTML = grades.map(g => {
+    const val = state.dp[g.key].toFixed(1);
+    const cls = val < g.req - 5 ? 'crit' : val < g.req ? 'warn' : '';
+    return `<div class="cascade-row ${cls}"><span>${g.label}</span><b>+${val} Pa</b></div>`;
+  }).join('');
+}
+
+// ==================== 3D ISOMETRIC ROBLOX-STYLE RENDERER ====================
+function drawIsoBlock(gx, gy, w, d, h, topCol, leftCol, rightCol) {
+  const { tileW, tileH } = getIsoMetrics();
+  const p0 = gridToScreen(gx, gy);
+  const p1 = gridToScreen(gx + w, gy);
+  const p2 = gridToScreen(gx + w, gy + d);
+  const p3 = gridToScreen(gx, gy + d);
+
+  // Left face
+  ctx.fillStyle = leftCol;
+  ctx.beginPath();
+  ctx.moveTo(p3.x, p3.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.lineTo(p2.x, p2.y - h);
+  ctx.lineTo(p3.x, p3.y - h);
+  ctx.closePath();
+  ctx.fill();
+
+  // Right face
+  ctx.fillStyle = rightCol;
+  ctx.beginPath();
+  ctx.moveTo(p2.x, p2.y);
+  ctx.lineTo(p1.x, p1.y);
+  ctx.lineTo(p1.x, p1.y - h);
+  ctx.lineTo(p2.x, p2.y - h);
+  ctx.closePath();
+  ctx.fill();
+
+  // Top face
+  ctx.fillStyle = topCol;
+  ctx.beginPath();
+  ctx.moveTo(p0.x, p0.y - h);
+  ctx.lineTo(p1.x, p1.y - h);
+  ctx.lineTo(p2.x, p2.y - h);
+  ctx.lineTo(p3.x, p3.y - h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawRobloxAvatar(gx, gy) {
+  const pos = gridToScreen(gx, gy);
+  const { tileW } = getIsoMetrics();
+  const s = tileW / 44;
+  const bounce = Math.abs(Math.sin(state.player.bob)) * 4 * s;
+  const zKey = getZoneAt(gx);
+
+  // Cleanroom gown color changes by grade (Roblox blocky avatar!)
+  const suitColor = zKey === 'A' || zKey === 'B' ? '#f8fafc' : zKey === 'C' ? '#74c0fc' : '#a5d8ff';
+  const suitShade = zKey === 'A' || zKey === 'B' ? '#cbd5e1' : '#4dabf7';
+
+  ctx.save();
+  ctx.translate(pos.x, pos.y - bounce);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.beginPath();
+  ctx.ellipse(0, bounce + 2 * s, 12 * s, 6 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Blocky Legs
+  ctx.fillStyle = suitShade;
+  ctx.fillRect(-7 * s, -14 * s, 6 * s, 14 * s);
+  ctx.fillRect(1 * s, -14 * s, 6 * s, 14 * s);
+
+  // Blocky Torso
+  ctx.fillStyle = suitColor;
+  ctx.fillRect(-9 * s, -30 * s, 18 * s, 16 * s);
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(-9 * s, -30 * s, 18 * s, 16 * s);
+
+  // Blocky Arms
+  ctx.fillStyle = suitShade;
+  ctx.fillRect(-13 * s, -29 * s, 4 * s, 14 * s);
+  ctx.fillRect(9 * s, -29 * s, 4 * s, 14 * s);
+
+  // Sterile Gloves (Blue Nitrile)
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillRect(-13 * s, -17 * s, 4 * s, 4 * s);
+  ctx.fillRect(9 * s, -17 * s, 4 * s, 4 * s);
+
+  // Roblox-style Cylindrical/Block Head + Cleanroom Hood & Goggles
+  ctx.fillStyle = '#fde047';
+  ctx.fillRect(-7 * s, -43 * s, 14 * s, 12 * s);
+  // Cleanroom Hood
+  ctx.fillStyle = suitColor;
+  ctx.fillRect(-8 * s, -44 * s, 16 * s, 5 * s);
+  // Protective Goggles
+  ctx.fillStyle = '#38bdf8';
+  ctx.fillRect(-6 * s, -39 * s, 12 * s, 4 * s);
+
+  // Overhead Role Tag
+  ctx.font = `bold ${Math.max(10, Math.round(11 * s))}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(`${state.role.icon} ${state.role.name.split(' ')[0]}`, 0, -50 * s);
+
+  ctx.restore();
+}
+
+function render() {
+  const { w, h, tileW, tileH } = getIsoMetrics();
+  ctx.clearRect(0, 0, w, h);
+
+  // 1. Draw Cleanroom Floor Tiles by Annex 1 Grade
+  for (let gx = 0; gx < COLS; gx++) {
+    for (let gy = 0; gy < ROWS; gy++) {
+      const zKey = getZoneAt(gx);
+      const z = ZONES[zKey];
+      const p0 = gridToScreen(gx, gy);
+      const p1 = gridToScreen(gx + 1, gy);
+      const p2 = gridToScreen(gx + 1, gy + 1);
+      const p3 = gridToScreen(gx, gy + 1);
+
+      const checker = (gx + gy) % 2 === 0;
+      ctx.fillStyle = checker ? z.color : z.top;
+      ctx.globalAlpha = checker ? 0.35 : 0.25;
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.lineTo(p3.x, p3.y);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.globalAlpha = 0.25;
+      ctx.strokeStyle = z.top;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // 2. Draw Partition Walls between Grades (with Airlock Openings at gy = 5..6)
+  [4, 8, 12].forEach(wallX => {
+    for (let gy = 0; gy < ROWS; gy++) {
+      if (gy === 5 || gy === 6) continue; // Airlock doorway
+      drawIsoBlock(wallX - 0.1, gy, 0.2, 1, 26, 'rgba(148, 163, 184, 0.55)', 'rgba(100, 116, 139, 0.45)', 'rgba(71, 85, 105, 0.45)');
+    }
+  });
+
+  // 3. Draw Hazards
+  state.hazards.forEach(hz => {
+    const pos = gridToScreen(hz.gx, hz.gy);
+    ctx.fillStyle = 'rgba(248, 81, 73, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(pos.x, pos.y, tileW * 0.4, tileH * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = '18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(hz.label.split(' ')[0], pos.x, pos.y + 4);
+  });
+
+  // 4. Draw Cleanroom Equipment Stations (3D Blocky Machines)
+  STATIONS.forEach(st => {
+    const isNear = state.nearbyStation && state.nearbyStation.id === st.id;
+    drawIsoBlock(st.gx - 0.5, st.gy - 0.5, 1.1, 1.1, isNear ? 28 : 22, st.color, '#1e293b', '#334155');
+    const topPos = gridToScreen(st.gx, st.gy);
+    ctx.font = '18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(st.icon, topPos.x, topPos.y - 26);
+
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = isNear ? '#ffffff' : '#cbd5e1';
+    ctx.fillText(st.label, topPos.x, topPos.y - 42);
+  });
+
+  // 5. Draw Player Avatar
+  drawRobloxAvatar(state.player.x, state.player.y);
+
+  // 6. Draw 3D Particle Bursts
+  state.particlesFx.forEach(p => {
+    const pos = gridToScreen(p.gx, p.gy);
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillRect(pos.x - 3, pos.y - p.z, 6, 6);
+    ctx.globalAlpha = 1;
+  });
+}
+
+function gameLoop(now) {
+  const dt = Math.min(0.05, (now - lastTick) / 1000);
+  lastTick = now;
+  update(dt);
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+updateHUD();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
